@@ -1,0 +1,8 @@
+[tool.black]
+line-length = 110
+target-version = ["py39"]
+
+[tool.isort]
+py_version = 39
+profile= "black"
+src_paths = ["mongorunway", "tests"]
