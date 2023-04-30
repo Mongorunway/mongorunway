@@ -2,7 +2,6 @@ from __future__ import annotations
 
 __all__: typing.Sequence[str] = ("MigrationQueryService",)
 
-import dataclasses
 import typing
 
 import pymongo
@@ -10,13 +9,6 @@ import pymongo
 if typing.TYPE_CHECKING:
     from mongorunway.kernel.application.ui import MigrationUI
     from mongorunway.kernel.domain.migration import Migration
-
-
-@dataclasses.dataclass
-class MigrationAnalytic:
-    pending_migrations: typing.Sequence[Migration]
-    applied_migrations: typing.Sequence[Migration]
-    last_applied_migration: typing.Optional[Migration]
 
 
 class MigrationQueryService:
