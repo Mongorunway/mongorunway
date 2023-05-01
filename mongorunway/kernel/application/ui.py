@@ -309,7 +309,7 @@ class BaseMigrationUI(MigrationUI):
     @requires_pending_migration
     def upgrade_once(self) -> int:
         upgrading_version = get_upgrading_version(self)
-        nowait_migration = self.pending.pop_nowait_migration()
+        nowait_migration = self.pending.pop_waiting_migration()
 
         _LOGGER.info(
             "%s: upgrading nowait migration (#%s -> #%s)...",
@@ -331,7 +331,7 @@ class BaseMigrationUI(MigrationUI):
     @requires_applied_migration
     def downgrade_once(self) -> int:
         downgrading_version = get_downgrading_version(self)
-        nowait_migration = self.applied.pop_nowait_migration()
+        nowait_migration = self.applied.pop_waiting_migration()
 
         _LOGGER.info(
             "%s: downgrading nowait migration (#%s -> #%s)...",
@@ -356,7 +356,7 @@ class BaseMigrationUI(MigrationUI):
 
         while self.pending.has_migrations():
             upgrading_version = get_upgrading_version(self)
-            migration = self.pending.pop_nowait_migration()
+            migration = self.pending.pop_waiting_migration()
 
             if not predicate(migration):
                 break
@@ -386,7 +386,7 @@ class BaseMigrationUI(MigrationUI):
 
         while self.applied.has_migrations():
             downgrading_version = get_downgrading_version(self)
-            migration = self.applied.pop_nowait_migration()
+            migration = self.applied.pop_waiting_migration()
 
             _LOGGER.info(
                 "%s: downgrading nowait migration (#%s -> #%s)...",
