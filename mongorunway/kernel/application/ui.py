@@ -463,10 +463,7 @@ class BaseMigrationUI(MigrationUI):
             )
 
     def get_migration_from_filename(self, migration_name: str) -> Migration:
-        module = util.import_module(
-            util.replace_slashes_with_dot(self.config.migration_scripts_dir),
-            py_file_to_concat=migration_name,
-        )
+        module = util.get_module(self.config.migration_scripts_dir, migration_name)
         migration_module = MigrationModule(module)
 
         migration = BaseMigration(

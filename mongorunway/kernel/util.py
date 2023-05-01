@@ -22,11 +22,9 @@
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
-    "import_module",
     "import_class_from_module",
     "get_module",
     "is_valid_migration_filename",
-    "replace_slashes_with_dot",
 )
 
 import importlib
@@ -36,32 +34,6 @@ import types
 import typing
 
 ClassT = typing.TypeVar("ClassT")
-
-
-def import_module(module_path: str, *, py_file_to_concat: typing.Optional[str] = None) -> types.ModuleType:
-    """Import a module by its absolute path, optionally concatenating it with a specified Python file.
-
-    Parameters
-    ----------
-    module_path : str
-        The absolute path to the module to import.
-    py_file_to_concat : str, optional
-        The name of the Python file to concatenate with the `module_path`.
-
-    Returns
-    -------
-    types.ModuleType
-        The imported module.
-
-    Raises
-    ------
-    ModuleNotFoundError
-        If the module cannot be found.
-    """
-    if py_file_to_concat is not None:
-        module_path = module_path + "." + py_file_to_concat.rstrip(".py")
-
-    return importlib.import_module(module_path)
 
 
 def import_class_from_module(class_path: str, /, cast: ClassT) -> ClassT:
@@ -111,6 +83,9 @@ def get_module(directory: str, filename: str) -> types.ModuleType:
     ModuleNotFoundError
         If the file specified by `filename` cannot be found.
     """
+    if not filename.endswith(".py"):
+        filename += ".py"
+
     spec = importlib.util.spec_from_file_location(filename.rstrip(".py"), os.path.join(directory, filename))
 
     module = importlib.util.module_from_spec(spec)
@@ -140,29 +115,3 @@ def is_valid_migration_filename(directory: str, filename: str) -> bool:
         and filename.endswith(".py")
         and not filename.startswith("__")
     )
-
-
-def replace_slashes_with_dot(string_to_replace: str, /) -> str:
-    """Replace forward slashes, backward slashes, and double slashes in a given string with
-    a dot (".") character.
-
-    Parameters
-    ----------
-    string_to_replace : str
-        The input string in which slashes should be replaced with dots.
-
-    Returns
-    -------
-    builtins.str
-        The input string with slashes replaced with dots.
-    """
-    string_to_replace = (
-        string_to_replace.replace(r"//", ".")
-        .replace(r"/", ".")
-        .replace(r"\\", ".")
-        .replace(r"\ ".strip(), ".")
-    )
-    if string_to_replace.endswith("."):
-        return string_to_replace[:-1]
-
-    return string_to_replace

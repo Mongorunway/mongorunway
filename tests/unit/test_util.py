@@ -35,27 +35,6 @@ class FakeClass:
 
 
 @pytest.mark.parametrize(
-    "module_path, py_file_to_concat, expected_output",
-    [
-        ("os", None, types.ModuleType),
-        ("tests.unit", "test_util", types.ModuleType)
-    ],
-)
-def test_import_module(
-    module_path: str, py_file_to_concat: typing.Optional[str], expected_output: typing.Any,
-) -> None:
-    with mock.patch('importlib.import_module') as mock_import_module:
-        mock_import_module.return_value = expected_output
-
-        result = util.import_module(module_path, py_file_to_concat=py_file_to_concat)
-
-        mock_import_module.assert_called_once_with(
-            f"{module_path}.{py_file_to_concat}" if py_file_to_concat else module_path
-        )
-        assert result == expected_output
-
-
-@pytest.mark.parametrize(
     "class_path, cast, expected_output",
     [
         ("datetime.datetime", datetime.datetime, datetime.datetime),
@@ -88,17 +67,6 @@ def test_is_valid_migration_filename() -> None:
     assert not util.is_valid_migration_filename("tests/unit/", "__init__.py")
     assert not util.is_valid_migration_filename("tests/unit/migrations/", "migration_001.txt")
     assert not util.is_valid_migration_filename("tests/unit/", "test_migrations")
-
-
-def test_replace_slashes_with_dot() -> None:
-    assert util.replace_slashes_with_dot("path/to/file") == "path.to.file"
-    assert util.replace_slashes_with_dot("path\\to\\file") == "path.to.file"
-    assert util.replace_slashes_with_dot("path//to//file") == "path.to.file"
-    assert util.replace_slashes_with_dot("path/to/folder/") == "path.to.folder"
-    assert util.replace_slashes_with_dot("/path/to/folder") == ".path.to.folder"
-    assert util.replace_slashes_with_dot("C:\\path\\to\\file") == "C:.path.to.file"
-    assert util.replace_slashes_with_dot(r"C:\path\to\file") == "C:.path.to.file"
-    assert util.replace_slashes_with_dot("C:/path/to/folder/") == "C:.path.to.folder"
 
 
 class TestGetModule:
