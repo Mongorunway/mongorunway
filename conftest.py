@@ -20,8 +20,10 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+import logging
 import typing
 
+import pymongo.database
 import pytest
 
 from mongorunway.kernel.infrastructure.migrations import BaseMigration
@@ -34,8 +36,8 @@ if typing.TYPE_CHECKING:
 
 
 @pytest.fixture(scope="function")
-def config() -> ApplicationConfig:
-    return ApplicationConfig.from_dict(
+def config(mongodb: pymongo.database.Database[typing.Dict[str, typing.Any]]) -> ApplicationConfig:
+    cfg = ApplicationConfig.from_dict(
         {
             "root": {
                 "scripts_dir": "test_migrations",
@@ -50,6 +52,11 @@ def config() -> ApplicationConfig:
         },
         name="test",
     )
+
+    cfg.connection.applied_migration_collection = mongodb.applied_migrations
+    cfg.connection.pending_migration_collection = mongodb.pending_migrations
+
+    return cfg
 
 
 @pytest.fixture(scope="function")

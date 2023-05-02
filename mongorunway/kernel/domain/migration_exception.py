@@ -6,6 +6,8 @@ __all__: typing.Sequence[str] = (
     "MigrationTransactionFailedError",
     "NothingToUpgradeError",
     "NothingToDowngradeError",
+    "MigrationHookError",
+    "MigrationFileChangedError",
 )
 
 import typing
@@ -36,6 +38,18 @@ class NothingToUpgradeError(MigrationFailedError):
 
 
 class NothingToDowngradeError(MigrationFailedError):
+    __slots__: typing.Sequence[str] = ()
+
+    pass
+
+
+class MigrationHookError(MigrationError):
+    __slots__: typing.Sequence[str] = ()
+
+    pass
+
+
+class MigrationFileChangedError(MigrationHookError):
     __slots__: typing.Sequence[str] = ()
 
     pass
