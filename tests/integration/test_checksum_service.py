@@ -18,38 +18,26 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""This module contains services for working with migration file checksums."""
 from __future__ import annotations
 
-__all__: typing.Sequence[str] = (
-    "calculate_migration_checksum",
-)
+import pathlib
 
-import hashlib
-import typing
-
-if typing.TYPE_CHECKING:
-    from mongorunway.kernel.domain.migration_module import MigrationModule
+from mongorunway.kernel.util import get_module
+from mongorunway.kernel.application.config import migration_file_template
+from mongorunway.kernel.domain.migration_module import MigrationModule
+from mongorunway.kernel.application.services.checksum_service import calculate_migration_checksum
 
 
-def calculate_migration_checksum(module: MigrationModule, /) -> str:
-    """Calculates the checksum of a migration module.
+def test_calculate_migration_checksum(tmp_path: pathlib.Path) -> None:
+    with open(tmp_path / (filename := "test.py"), "w") as f:
+        f.write(
+            migration_file_template.safe_substitute(
+                version=-1,
+                upgrade_commands=[],
+                downgrade_commands=[],
+            )
+        )
 
-    Parameters
-    ----------
-    module : MigrationModule
-        The migration module to calculate the checksum for.
+    module = MigrationModule(get_module(str(tmp_path), filename))
 
-    Returns
-    -------
-    str
-        The checksum of the migration module.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the migration module's file location cannot be found.
-    """
-    with open(module.location, "r") as f:
-        file_data = f.read().encode()
-        return hashlib.md5(file_data).hexdigest()
+    assert calculate_migration_checksum(module) == "f8210f7ad9a86f6cf40fe718e72a7691"

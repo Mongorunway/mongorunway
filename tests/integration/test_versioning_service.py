@@ -18,38 +18,18 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""This module contains services for working with migration file checksums."""
 from __future__ import annotations
 
-__all__: typing.Sequence[str] = (
-    "calculate_migration_checksum",
-)
-
-import hashlib
 import typing
 
+from mongorunway.kernel.application.services.versioning_service import (
+    get_previous_version,
+)
+
 if typing.TYPE_CHECKING:
-    from mongorunway.kernel.domain.migration_module import MigrationModule
+    from mongorunway.kernel.domain.migration import Migration
 
 
-def calculate_migration_checksum(module: MigrationModule, /) -> str:
-    """Calculates the checksum of a migration module.
-
-    Parameters
-    ----------
-    module : MigrationModule
-        The migration module to calculate the checksum for.
-
-    Returns
-    -------
-    str
-        The checksum of the migration module.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the migration module's file location cannot be found.
-    """
-    with open(module.location, "r") as f:
-        file_data = f.read().encode()
-        return hashlib.md5(file_data).hexdigest()
+def test_get_previous_version(migration: Migration, migration2: Migration) -> None:
+    assert get_previous_version(migration) is None
+    assert get_previous_version(migration2) == 1

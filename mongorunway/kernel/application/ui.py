@@ -24,8 +24,7 @@ from mongorunway.kernel.application.services.checksum_service import (
     calculate_migration_checksum,
 )
 from mongorunway.kernel.application.services.versioning_service import (
-    get_downgrading_version,
-    get_upgrading_version,
+    get_previous_version,
 )
 from mongorunway.kernel.application.transactions import (
     TRANSACTION_NOT_APPLIED,
@@ -308,45 +307,43 @@ class BaseMigrationUI(MigrationUI):
 
     @requires_pending_migration
     def upgrade_once(self) -> int:
-        upgrading_version = get_upgrading_version(self)
-        nowait_migration = self.pending.pop_waiting_migration()
+        migration = self.pending.pop_waiting_migration()
 
         _LOGGER.info(
-            "%s: upgrading nowait migration (#%s -> #%s)...",
+            "%s: upgrading waiting migration (#%s -> #%s)...",
             self.name,
-            upgrading_version,
-            nowait_migration.version,
+            get_previous_version(migration),
+            migration.version,
         )
 
         with self._session.start_transaction(UpgradeTransaction(self)) as transaction:
-            transaction.apply_migration(nowait_migration)
+            transaction.apply_migration(migration)
 
             _LOGGER.info(
                 "%s: Successfully upgraded to (#%s).",
                 self.name,
-                nowait_migration.version,
+                migration.version,
             )
             return TRANSACTION_SUCCESS
 
     @requires_applied_migration
     def downgrade_once(self) -> int:
-        downgrading_version = get_downgrading_version(self)
-        nowait_migration = self.applied.pop_waiting_migration()
+        migration = self.applied.pop_waiting_migration()
 
         _LOGGER.info(
-            "%s: downgrading nowait migration (#%s -> #%s)...",
+            "%s: downgrading waiting migration (#%s -> #%s)...",
             self.name,
-            nowait_migration.version,
-            downgrading_version,
+            migration.version,
+            get_previous_version(migration),
         )
 
         with self._session.start_transaction(DowngradeTransaction(self)) as transaction:
-            transaction.apply_migration(nowait_migration)
+            transaction.apply_migration(migration)
 
             _LOGGER.info(
                 "%s: successfully downgraded to (#%s).",
                 self.name,
-                downgrading_version,
+                migration,
             )
             return TRANSACTION_SUCCESS
 
@@ -355,16 +352,15 @@ class BaseMigrationUI(MigrationUI):
         upgraded = 0
 
         while self.pending.has_migrations():
-            upgrading_version = get_upgrading_version(self)
             migration = self.pending.pop_waiting_migration()
 
             if not predicate(migration):
                 break
 
             _LOGGER.info(
-                "%s: upgrading nowait migration (#%s -> #%s)...",
+                "%s: upgrading waiting migration (#%s -> #%s)...",
                 self.name,
-                upgrading_version,
+                get_previous_version(migration),
                 migration.version,
             )
 
@@ -385,14 +381,13 @@ class BaseMigrationUI(MigrationUI):
         downgraded = 0
 
         while self.applied.has_migrations():
-            downgrading_version = get_downgrading_version(self)
             migration = self.applied.pop_waiting_migration()
 
             _LOGGER.info(
-                "%s: downgrading nowait migration (#%s -> #%s)...",
+                "%s: downgrading waiting migration (#%s -> #%s)...",
                 self.name,
                 migration.version,
-                downgrading_version,
+                get_previous_version(migration),
             )
 
             if not predicate(migration):
@@ -404,7 +399,7 @@ class BaseMigrationUI(MigrationUI):
             _LOGGER.info(
                 "%s: successfully downgraded to (#%s).",
                 self.name,
-                downgrading_version,
+                migration.version,
             )
             downgraded += 1
 

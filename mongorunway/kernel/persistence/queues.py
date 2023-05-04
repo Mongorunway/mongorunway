@@ -78,7 +78,7 @@ class BaseMigrationQueue(MigrationQueue):
         collection: pymongo.collection.Collection[typing.Dict[str, typing.Any]],
     ) -> None:
         if sort_order not in (pymongo.ASCENDING, pymongo.DESCENDING):
-            raise ValueError(f"Unsupported sort order: {self._sort_order}")
+            raise ValueError(f"Unsupported sort order: {sort_order}")
 
         self._application = application
         self._collection = collection
