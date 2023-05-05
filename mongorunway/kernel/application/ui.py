@@ -281,7 +281,8 @@ class ApplicationSession:
                 exc.__class__.__name__,
             )
             transaction.rollback()
-            raise MigrationTransactionFailedError() from exc
+
+            raise MigrationTransactionFailedError(transaction.ensure_migration()) from exc
 
 
 class MigrationUI(abc.ABC):

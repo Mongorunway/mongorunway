@@ -36,7 +36,6 @@ def test_constants() -> None:
 
 class TestUpgradeTransaction:
     def test_commit(self, application: MigrationUI, migration: Migration) -> None:
-        # Simulate the real environment
         application.pending.append_migration(migration)
         assert len(application.pending) == 1
 
@@ -63,11 +62,19 @@ class TestUpgradeTransaction:
 
         assert len(application.pending) == 1
         assert len(application.applied) == 0
+
+    def test_ensure_migration(self, application: MigrationUI, migration: Migration) -> None:
+        application.pending.append_migration(migration)
+        assert len(application.pending) == 1
+
+        transaction = UpgradeTransaction(application)
+        transaction.apply_migration(migration)
+
+        assert transaction.ensure_migration().version == migration.version
 
 
 class TestDowngradeTransaction:
     def test_commit(self, application: MigrationUI, migration: Migration) -> None:
-        # Simulate the real environment
         application.applied.append_migration(migration)
         assert len(application.applied) == 1
 
@@ -94,3 +101,12 @@ class TestDowngradeTransaction:
 
         assert len(application.applied) == 1
         assert len(application.pending) == 0
+
+    def test_ensure_migration(self, application: MigrationUI, migration: Migration) -> None:
+        application.applied.append_migration(migration)
+        assert len(application.applied) == 1
+
+        transaction = DowngradeTransaction(application)
+        transaction.apply_migration(migration)
+
+        assert transaction.ensure_migration().version == migration.version

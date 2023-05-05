@@ -196,7 +196,7 @@ class RaiseIfMigrationChecksumMismatch(MigrationHook):
                         migration.name,
                         migration.version,
                     )
-                    raise MigrationFileChangedError(f"Migration {migration.name!r} is changed.")
+                    raise MigrationFileChangedError(migration)
 
         _validate_queue(application.pending)
         _validate_queue(application.applied)

@@ -1,3 +1,24 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""This module defines a hierarchy of exceptions used throughout the migration application."""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
@@ -12,44 +33,96 @@ __all__: typing.Sequence[str] = (
 
 import typing
 
+if typing.TYPE_CHECKING:
+    from mongorunway.kernel.domain.migration import Migration
+
 
 class MigrationError(Exception):
+    """Base class for all migration errors.
+
+    This class is inherited by all other migration-related exception classes.
+    """
+
     __slots__: typing.Sequence[str] = ()
 
     pass
 
 
 class MigrationFailedError(MigrationError):
+    """Error that is raised when a migration fails to apply.
+
+    This exception is raised when a migration command fails to execute properly.
+    """
+
     __slots__: typing.Sequence[str] = ()
 
     pass
 
 
 class MigrationTransactionFailedError(MigrationFailedError):
-    __slots__: typing.Sequence[str] = ()
+    """Raised when a migration transaction fails.
 
-    pass
+    This exception is raised when a transaction of a migration fails during execution.
+
+    Parameters
+    ----------
+    migration : Migration
+        The migration that caused the error.
+    """
+
+    __slots__: typing.Sequence[str] = ("migration",)
+
+    def __init__(self, migration: Migration, /) -> None:
+        self.migration = migration
+
+        super().__init__(
+            f"Migration {migration.name!r} with version {migration.version!r} is failed."
+        )
 
 
 class NothingToUpgradeError(MigrationFailedError):
+    """An exception raised when there are no pending migrations to upgrade."""
+
     __slots__: typing.Sequence[str] = ()
 
-    pass
+    def __str__(self) -> str:
+        return "There are currently no pending migrations."
 
 
 class NothingToDowngradeError(MigrationFailedError):
+    """An exception raised when there are no applied migrations to downgrade."""
+
     __slots__: typing.Sequence[str] = ()
 
-    pass
+    def __str__(self) -> str:
+        return "There are currently no applied migrations."
 
 
 class MigrationHookError(MigrationError):
+    """Base error occurred while executing a migration hook."""
+
     __slots__: typing.Sequence[str] = ()
 
     pass
 
 
 class MigrationFileChangedError(MigrationHookError):
-    __slots__: typing.Sequence[str] = ()
+    """Exception raised when a migration file is changed.
 
-    pass
+    This exception is raised when a migration file is modified after it has been
+    applied to the database.
+
+    Parameters
+    ----------
+    migration : Migration
+        The migration that caused the error.
+    """
+
+    __slots__: typing.Sequence[str] = ("migration",)
+
+    def __init__(self, migration: Migration, /) -> None:
+        self.migration = migration
+
+        super().__init__(
+            f"Migration {migration.name!r} with version {migration.version!r} is changed."
+        )

@@ -73,6 +73,22 @@ class MigrationTransaction(abc.ABC):
         """Rollback the transaction."""
         ...
 
+    @abc.abstractmethod
+    def ensure_migration(self) -> Migration:
+        """Ensure that the current migration being upgraded is not None.
+
+        Returns
+        -------
+        Migration
+            The current migration being upgraded.
+
+        Raises
+        ------
+        ValueError
+            If the current migration being upgraded is None.
+        """
+        ...
+
 
 class UpgradeTransaction(MigrationTransaction):
     """Represents a transaction for upgrading a migration.
@@ -105,7 +121,7 @@ class UpgradeTransaction(MigrationTransaction):
         Commit the transaction by appending the applied migration and removing the
         pending migration.
         """
-        waiting_migration = self._ensure_migration()
+        waiting_migration = self.ensure_migration()
         self._application.applied.append_migration(waiting_migration)
         self._application.pending.remove_migration(waiting_migration.version)
 
@@ -114,7 +130,7 @@ class UpgradeTransaction(MigrationTransaction):
         Rollback the transaction by removing the applied migration and adding the pending
         migration back.
         """
-        waiting_migration = self._ensure_migration()
+        waiting_migration = self.ensure_migration()
 
         if self._application.applied.has_migration(waiting_migration):
             self._application.applied.remove_migration(waiting_migration.version)
@@ -122,7 +138,7 @@ class UpgradeTransaction(MigrationTransaction):
         if not self._application.pending.has_migration(waiting_migration):
             self._application.pending.append_migration(waiting_migration)
 
-    def _ensure_migration(self) -> Migration:
+    def ensure_migration(self) -> Migration:
         """Ensure that the current migration being upgraded is not None.
 
         Returns
@@ -172,7 +188,7 @@ class DowngradeTransaction(MigrationTransaction):
         Commit the transaction by appending the pending migration and removing the
         applied migration.
         """
-        waiting_migration = self._ensure_migration()
+        waiting_migration = self.ensure_migration()
         self._application.pending.append_migration(waiting_migration)
         self._application.applied.remove_migration(waiting_migration.version)
 
@@ -181,7 +197,7 @@ class DowngradeTransaction(MigrationTransaction):
         Rollback the transaction by removing the pending migration and adding the applied
         migration back.
         """
-        waiting_migration = self._ensure_migration()
+        waiting_migration = self.ensure_migration()
 
         if self._application.pending.has_migration(waiting_migration):
             self._application.pending.remove_migration(waiting_migration.version)
@@ -189,7 +205,7 @@ class DowngradeTransaction(MigrationTransaction):
         if not self._application.applied.has_migration(waiting_migration):
             self._application.applied.append_migration(waiting_migration)
 
-    def _ensure_migration(self) -> Migration:
+    def ensure_migration(self) -> Migration:
         """Ensure that a migration is upgraded.
 
         Raises:

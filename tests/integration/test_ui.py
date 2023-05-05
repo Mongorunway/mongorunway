@@ -26,7 +26,7 @@ from unittest import mock
 import pytest
 
 from mongorunway.kernel.domain.migration_exception import NothingToUpgradeError, NothingToDowngradeError, MigrationTransactionFailedError
-from mongorunway.kernel.application.transactions import TRANSACTION_SUCCESS, TRANSACTION_NOT_APPLIED
+from mongorunway.kernel.application.transactions import TRANSACTION_SUCCESS, TRANSACTION_NOT_APPLIED, UpgradeTransaction
 from mongorunway.kernel.application.ui import requires_pending_migration, requires_applied_migration, ApplicationSession
 from mongorunway.kernel.application.transactions import MigrationTransaction
 from mongorunway.kernel.application.ports.hook import MigrationHook, PrioritizedMigrationHook
@@ -92,21 +92,37 @@ class TestApplicationSession:
             mock_apply_hooks.assert_called_once_with(session, prioritized_hooks)
 
     def test_start_transaction_commit(self, application: MigrationUI) -> None:
-        transaction = mock.MagicMock(spec=MigrationTransaction)
+        mock_transaction = mock.MagicMock(spec=MigrationTransaction)
 
-        with application.session.start_transaction(transaction) as t:
-            assert transaction == t
+        with application.session.start_transaction(mock_transaction) as t:
+            assert mock_transaction == t
 
-        transaction.commit.assert_called_once()
+        mock_transaction.commit.assert_called_once()
 
     def test_start_transaction_rollback(self, application: MigrationUI) -> None:
-        transaction = mock.MagicMock(spec=MigrationTransaction)
+        mock_transaction = mock.MagicMock(spec=MigrationTransaction)
         error = ValueError("Some error")
-        transaction.commit.side_effect = error
+        mock_transaction.commit.side_effect = error
 
         with pytest.raises(MigrationTransactionFailedError):
-            with application.session.start_transaction(transaction):
+            with application.session.start_transaction(mock_transaction):
                 pass
+
+    def test_start_transaction_ensures_migration_in_exc(self, application: MigrationUI) -> None:
+        transaction = UpgradeTransaction(application)
+
+        mock_migration = mock.MagicMock(spec=Migration)
+        mock_migration.to_mongo_dict = lambda: {}
+        mock_migration.version = 1
+        error = ValueError("Some error")
+        mock_migration.upgrade.side_effect = error
+
+        try:
+            with application.session.start_transaction(transaction) as t:
+                t.apply_migration(mock_migration)
+
+        except MigrationTransactionFailedError as exc:
+            assert exc.migration.version == 1
 
 
 class TestMigrationUI:
