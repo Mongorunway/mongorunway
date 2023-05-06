@@ -1,4 +1,5 @@
-import contextvars
+from __future__ import annotations
+
 import logging
 
 logger = logging.getLogger("mongorunway")
@@ -8,4 +9,3 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 
 logger.addHandler(handler)
-CLI_EXTRA_KWARGS = contextvars.ContextVar("CLI_EXTRA_KWARGS", default={})

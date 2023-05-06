@@ -1,3 +1,30 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""Module for implementing database migration commands.
+This module contains classes that implement database migration commands. Each command performs
+a specific action, such as creating or dropping a collection.
+
+The command classes inherit from the abstract class MigrationCommand and must implement the execute
+method, which performs the corresponding action in the database.
+"""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
@@ -5,117 +32,132 @@ __all__: typing.Sequence[str] = (
     "DropCollectionCommand",
     "CreateDatabaseCommand",
     "DropDatabaseCommand",
-    "create_collection",
-    "drop_collection",
-    "create_database",
-    "drop_database",
-    "cli_aware",
 )
 
-import functools
-import inspect
 import typing
 
 import pymongo
 
-from mongorunway import CLI_EXTRA_KWARGS
 from mongorunway.kernel.domain.migration_command import MigrationCommand
 
-
-def intersect_with_cli_args(command: MigrationCommand, /) -> typing.Mapping[str, typing.Any]:
-    resolved_kwargs = {}
-    command_constructor = inspect.Signature.from_callable(command.__init__)
-    for parameter in command_constructor.parameters.values():
-        if (parameter_value := getattr(command, parameter.name)) is None:
-            cmd_vars = CLI_EXTRA_KWARGS.get()
-            if (parameter_value := cmd_vars.get(parameter.name)) is None:
-                raise ValueError(f"Varname {parameter.name!r} must be specified manually or as cli argument.")
-
-        resolved_kwargs[parameter.name] = parameter_value
-
-    return resolved_kwargs
-
-
-def cli_aware(cmd):
-    @functools.wraps(cmd)
-    def wrapper(self, *args):
-        kwargs = intersect_with_cli_args(self)
-        return cmd(self, *args, **kwargs)
-
-    return wrapper
+T = typing.TypeVar("T")
 
 
 class CreateCollectionCommand(MigrationCommand):
+    """A migration command that creates a collection in a MongoDB database.
+
+    Parameters
+    ----------
+    collection : str
+        The name of the collection to be created.
+    database : str
+        The name of the database where the collection will be created.
+    """
+
     __slots__: typing.Sequence[str] = (
-        "collection_name",
-        "database_name",
+        "collection",
+        "database",
     )
 
-    def __init__(
-        self,
-        collection_name: typing.Optional[str] = None,
-        database_name: typing.Optional[str] = None,
-    ) -> None:
-        self.collection_name = collection_name
-        self.database_name = database_name
+    def __init__(self, collection: str, database: str) -> None:
+        self.collection = collection
+        self.database = database
 
-    @cli_aware
-    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]], **kwargs: typing.Any) -> None:
-        db = conn.get_database(kwargs["database_name"])
-        db.create_collection(kwargs["collection_name"])
+    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]]) -> None:
+        """Execute the command by creating a new collection in the specified database.
+
+        Parameters
+        ----------
+        conn : MongoClient[typing.Dict[str, typing.Any]]
+            MongoClient instance connected to the MongoDB server.
+        """
+        db = conn.get_database(self.database)
+        db.create_collection(self.collection)
 
 
 class DropCollectionCommand(MigrationCommand):
+    """A class representing a migration command that drops a collection from a database.
+
+    Parameters
+    ----------
+    collection : str
+        The name of the collection to be dropped.
+    database : str
+        The name of the database containing the collection to be dropped.
+    """
+
     __slots__: typing.Sequence[str] = (
-        "collection_name",
-        "database_name",
+        "collection",
+        "database",
     )
 
-    def __init__(
-        self,
-        collection_name: typing.Optional[str] = None,
-        database_name: typing.Optional[str] = None,
-    ) -> None:
-        self.collection_name = collection_name
-        self.database_name = database_name
+    def __init__(self, collection: str, database: str) -> None:
+        self.collection = collection
+        self.database = database
 
-    @cli_aware
-    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]], **kwargs) -> None:
-        db = conn.get_database(kwargs["database_name"])
-        db.drop_collection(kwargs["collection_name"])
+    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]]) -> None:
+        """Drops the collection from the specified database.
+
+        Parameters
+        ----------
+        conn : MongoClient[typing.Dict[str, typing.Any]]
+            MongoClient instance connected to the MongoDB server.
+        """
+        db = conn.get_database(self.database)
+        db.drop_collection(self.collection)
 
 
 class CreateDatabaseCommand(MigrationCommand):
+    """Command to create a database and a collection in it.
+
+    Parameters
+    ----------
+    collection : str
+        Name of the collection to be created in the database.
+    database : str
+        Name of the database where the collection will be created.
+    """
+
     __slots__: typing.Sequence[str] = (
-        "collection_name",
-        "database_name",
+        "collection",
+        "database",
     )
 
-    def __init__(
-        self,
-        collection_name: typing.Optional[str] = None,
-        database_name: typing.Optional[str] = None,
-    ) -> None:
-        self.collection_name = collection_name
-        self.database_name = database_name
+    def __init__(self, collection: str, database: str) -> None:
+        self.collection = collection
+        self.database = database
 
-    @cli_aware
-    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]], **kwargs: typing.Any) -> None:
-        conn.get_database(kwargs["database_name"]).create_collection(kwargs["collection_name"])
+    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]]) -> None:
+        """Execute the command to create a database and a collection in it.
+
+        Parameters
+        ----------
+        conn : MongoClient[typing.Dict[str, typing.Any]]
+            MongoClient instance connected to the MongoDB server.
+        """
+        conn.get_database(self.database).create_collection(self.collection)
 
 
 class DropDatabaseCommand(MigrationCommand):
-    __slots__: typing.Sequence[str] = ("database_name",)
+    """A migration command that drops a MongoDB database.
 
-    def __init__(self, database_name: typing.Optional[str] = None) -> None:
-        self.database_name = database_name
+    Parameters
+    ----------
+    database :
+        The name of the database to drop.
+    """
 
-    @cli_aware
-    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]], **kwargs: typing.Any) -> None:
-        conn.drop_database(kwargs["database_name"])
+    __slots__: typing.Sequence[str] = ("database",)
 
+    def __init__(self, database: str) -> None:
+        self.database = database
 
-create_collection = CreateCollectionCommand
-drop_collection = DropCollectionCommand
-create_database = CreateDatabaseCommand
-drop_database = DropDatabaseCommand
+    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]]) -> None:
+        """Executes the drop database command.
+
+        Parameters
+        ----------
+        conn : MongoClient[typing.Dict[str, typing.Any]]
+            MongoClient instance connected to the MongoDB server.
+        """
+        conn.drop_database(self.database)

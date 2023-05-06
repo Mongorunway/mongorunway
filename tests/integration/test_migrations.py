@@ -30,7 +30,7 @@ from mongorunway.kernel.infrastructure.migrations import BaseMigration
 
 
 class FakeCommand(MigrationCommand):
-    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]], **kwargs: typing.Any) -> None:
+    def execute(self, conn: pymongo.MongoClient[typing.Dict[str, typing.Any]]) -> None:
         pass
 
 
