@@ -47,7 +47,10 @@ def config(mongodb: pymongo.database.Database[typing.Dict[str, typing.Any]]) -> 
                 "database": "test_database",
                 "collection_applied": "applied_migrations",
                 "collection_pending": "pending_migrations",
-            }
+            },
+            "app_test.auditlog": {
+                "collection_auditlog": "auditlog_collection",
+            },
         },
         name="test",
     )

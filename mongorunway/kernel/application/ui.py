@@ -807,7 +807,7 @@ class BaseMigrationUI(MigrationUI):
             _LOGGER.info(
                 "%s: successfully downgraded to (#%s).",
                 self.name,
-                migration.version,
+                get_previous_version(migration),
             )
             return TRANSACTION_SUCCESS
 
@@ -914,7 +914,7 @@ class BaseMigrationUI(MigrationUI):
             _LOGGER.info(
                 "%s: successfully downgraded to (#%s).",
                 self.name,
-                migration.version,
+                get_previous_version(migration),
             )
             downgraded += 1
 

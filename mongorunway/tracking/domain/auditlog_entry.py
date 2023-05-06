@@ -1,3 +1,24 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""The module contains implementations of the audit log migration record models."""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
@@ -10,7 +31,6 @@ __all__: typing.Sequence[str] = (
     "BulkMigrationDowngraded",
     "PendingMigrationAdded",
     "PendingMigrationRemoved",
-    "MigrationFileTemplateCreated",
 )
 
 import dataclasses
@@ -21,19 +41,20 @@ import zoneinfo
 from mongorunway.kernel.domain.migration import MigrationReadModel
 
 T = typing.TypeVar("T")
+EntryTT = typing.TypeVar("EntryTT", bound=typing.Type["AuditlogEntry"])
 
 
 class EntryTypeRegistry:
     __slots__: typing.Sequence[str] = ("_registered_entries",)
 
     def __init__(self) -> None:
-        self._registered_entries = {}
+        self._registered_entries: typing.Dict[str, typing.Type[AuditlogEntry]] = {}
 
-    def register(self, entry_cls: T, /) -> T:
+    def register(self, entry_cls: EntryTT, /) -> EntryTT:
         self._registered_entries[entry_cls.__name__] = entry_cls
         return entry_cls
 
-    def get_entry_type(self, entry_name: str, /) -> typing.Optional[AuditlogEntry]:
+    def get_entry_type(self, entry_name: str, /) -> typing.Optional[typing.Type[AuditlogEntry]]:
         return self._registered_entries.get(entry_name)
 
 
@@ -41,21 +62,16 @@ entry_registry = EntryTypeRegistry()
 
 
 class AuditlogEntry:
-    __slots__: typing.Sequence[str] = (
-        "name",
-        "date",
-    )
-
     def __init__(self, *, name: str, date: datetime.datetime = datetime.datetime.utcnow()) -> None:
         self.name = name
         self.date = date
 
     @classmethod
-    def new(cls, *args, **kwargs) -> AuditlogEntry:
+    def new(cls, *args: typing.Any, **kwargs: typing.Any) -> AuditlogEntry:
         return cls(name=cls.__name__, *args, **kwargs)
 
     @classmethod
-    def from_schema(cls: typing.Type[T], mapping: typing.Dict[str, typing.Any], /) -> T:
+    def from_schema(cls: typing.Type[EntryTT], mapping: typing.Dict[str, typing.Any], /) -> T:
         mapping.pop("_id", None)
         return cls(**mapping)
 
@@ -78,11 +94,6 @@ class AuditlogEntry:
 
 @entry_registry.register
 class MigrationUpgraded(AuditlogEntry):
-    __slots__: typing.Sequence[str] = (
-        "upgraded_count",
-        "migration_read_model",
-    )
-
     def __init__(
         self,
         *,
@@ -108,8 +119,6 @@ class MigrationUpgraded(AuditlogEntry):
 
 @entry_registry.register
 class PendingMigrationAdded(AuditlogEntry):
-    __slots__: typing.Sequence[str] = ("migration_read_model",)
-
     def __init__(
         self,
         *,
@@ -133,8 +142,6 @@ class PendingMigrationAdded(AuditlogEntry):
 
 @entry_registry.register
 class PendingMigrationRemoved(AuditlogEntry):
-    __slots__: typing.Sequence[str] = ("migration_read_model",)
-
     def __init__(
         self,
         *,
@@ -158,11 +165,6 @@ class PendingMigrationRemoved(AuditlogEntry):
 
 @entry_registry.register
 class MigrationDowngraded(AuditlogEntry):
-    __slots__: typing.Sequence[str] = (
-        "downgraded_count",
-        "migration_read_model",
-    )
-
     def __init__(
         self,
         *,
@@ -188,17 +190,12 @@ class MigrationDowngraded(AuditlogEntry):
 
 @entry_registry.register
 class BulkMigrationUpgraded(AuditlogEntry):
-    __slots__: typing.Sequence[str] = (
-        "upgraded_count",
-        "upgraded_migrations",
-    )
-
     def __init__(
         self,
         *,
         name: str,
         upgraded_count: int,
-        upgraded_migrations: typing.Sequence[int],
+        upgraded_migrations: typing.Sequence[MigrationReadModel],
         date: datetime.datetime = datetime.datetime.utcnow(),
     ) -> None:
         super().__init__(name=name, date=date)
@@ -222,17 +219,12 @@ class BulkMigrationUpgraded(AuditlogEntry):
 
 @entry_registry.register
 class BulkMigrationDowngraded(AuditlogEntry):
-    __slots__: typing.Sequence[str] = (
-        "downgraded_count",
-        "downgraded_migrations",
-    )
-
     def __init__(
         self,
         *,
         name: str,
         downgraded_count: int,
-        downgraded_migrations: typing.Sequence[int],
+        downgraded_migrations: typing.Sequence[MigrationReadModel],
         date: datetime.datetime = datetime.datetime.utcnow(),
     ) -> None:
         super().__init__(name=name, date=date)
@@ -252,23 +244,3 @@ class BulkMigrationDowngraded(AuditlogEntry):
             dataclasses.asdict(schema) for schema in mapping["downgraded_migrations"]
         ]
         return mapping
-
-
-@entry_registry.register
-class MigrationFileTemplateCreated(AuditlogEntry):
-    __slots__: typing.Sequence[str] = (
-        "migration_filename",
-        "migration_version",
-    )
-
-    def __init__(
-        self,
-        *,
-        name: str,
-        migration_filename: str,
-        migration_version: int,
-        date: datetime.datetime = datetime.datetime.utcnow(),
-    ) -> None:
-        super().__init__(name=name, date=date)
-        self.migration_filename = migration_filename
-        self.migration_version = migration_version
