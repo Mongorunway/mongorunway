@@ -1,8 +1,23 @@
-[tool.black]
-line-length = 110
-target-version = ["py39"]
-
 [tool.isort]
-py_version = 39
-profile= "black"
+py_version = 3
+line_length = 99
+profile = "google"
 src_paths = ["mongorunway", "tests"]
+
+[tool.mypy]
+strict = true
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+warn_unused_configs = true
+implicit_reexport = false
+warn_return_any = true
+warn_unreachable = true
+warn_no_return = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[tool.black]
+line-length = 99
+target-version = ["py38"]

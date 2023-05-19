@@ -18,14 +18,31 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""This module contains services for working with migration versions."""
 from __future__ import annotations
 
-__author__ = "Animatea"
-__copyright__ = "Copyright (c) 2023 Animatea"
-__license__ = "MIT"
-__url__ = "https://github.com/Animatea/mongorunway"
+__all__: typing.Sequence[str] = ("get_previous_migration_version",)
 
-from mongorunway.api import *
-from mongorunway.domain.migration_business_rule import *
-from mongorunway.domain.migration_command import *
-from mongorunway.infrastructure.commands import *
+import typing
+
+if typing.TYPE_CHECKING:
+    from mongorunway.domain import migration as domain_migration
+
+
+def get_previous_migration_version(
+    migration: typing.Union[domain_migration.Migration, domain_migration.MigrationReadModel], /
+) -> typing.Optional[int]:
+    """Returns the version number of the previous migration of a given migration object.
+
+    Parameters
+    ----------
+    migration : Migration
+        The migration object for which to retrieve the previous version number.
+
+    Returns
+    -------
+    Optional[int]
+        The version number of the previous migration, or None if the provided migration
+        object has no previous version.
+    """
+    return (migration.version - 1) or None

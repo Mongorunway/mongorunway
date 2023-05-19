@@ -18,14 +18,36 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+"""This module contains services for working with migration file checksums."""
 from __future__ import annotations
 
-__author__ = "Animatea"
-__copyright__ = "Copyright (c) 2023 Animatea"
-__license__ = "MIT"
-__url__ = "https://github.com/Animatea/mongorunway"
+__all__: typing.Sequence[str] = ("calculate_migration_checksum",)
 
-from mongorunway.api import *
-from mongorunway.domain.migration_business_rule import *
-from mongorunway.domain.migration_command import *
-from mongorunway.infrastructure.commands import *
+import hashlib
+import typing
+
+if typing.TYPE_CHECKING:
+    from mongorunway.domain import migration_module as domain_module
+
+
+def calculate_migration_checksum(module: domain_module.MigrationModule, /) -> str:
+    """Calculates the checksum of a migration module.
+
+    Parameters
+    ----------
+    module : MigrationModule
+        The migration module to calculate the checksum for.
+
+    Returns
+    -------
+    str
+        The checksum of the migration module.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the migration module's file location cannot be found.
+    """
+    with open(module.location, "r") as f:
+        file_data = f.read().encode()
+        return hashlib.md5(file_data).hexdigest()

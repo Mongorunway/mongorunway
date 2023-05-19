@@ -18,14 +18,7 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-from __future__ import annotations
-
-__author__ = "Animatea"
-__copyright__ = "Copyright (c) 2023 Animatea"
-__license__ = "MIT"
-__url__ = "https://github.com/Animatea/mongorunway"
-
-from mongorunway.api import *
-from mongorunway.domain.migration_business_rule import *
-from mongorunway.domain.migration_command import *
-from mongorunway.infrastructure.commands import *
+"""
+!!! This file is necessary for the proper functioning of the project
+    documentation generation tool.
+"""
