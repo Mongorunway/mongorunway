@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "DocumentType",
+    "Client",
+    "Database",
+    "Collection",
+    "ClientSession",
+)
+
 import typing
 
 import pymongo

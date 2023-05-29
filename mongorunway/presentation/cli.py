@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import datetime
 import functools
 import sys
 import typing
@@ -9,21 +8,15 @@ import click
 
 from mongorunway.application import applications
 from mongorunway.application import use_cases
-from mongorunway.infrastructure.persistence import auditlog_journals
-from mongorunway.infrastructure.persistence import repositories
 from mongorunway.presentation import presenters
-
-if typing.TYPE_CHECKING:
-    from mongorunway.application.ports import auditlog_journal as auditlog_journal_port
 
 _P = typing.ParamSpec("_P")
 _T = typing.TypeVar("_T")
 _CommandT = typing.TypeVar("_CommandT")
 
 
-def application_aware(command: typing.Callable[_P, _T]) -> typing.Callable[_P, _T]:
-    click.argument("application_name", type=click.STRING)(command)
-    click.option("--config-file", type=click.STRING, envvar="MONGORUNWAY_CONFIG_FILE")(command)
+def pass_application(command: typing.Callable[_P, _T]) -> typing.Callable[_P, _T]:
+    click.option("--config-file", type=click.STRING)(command)
 
     @click.pass_context
     def wrapper(ctx: click.Context, *args: _P.args, **kwargs: _P.kwargs) -> _T:
@@ -33,25 +26,14 @@ def application_aware(command: typing.Callable[_P, _T]) -> typing.Callable[_P, _
             verbose_exc=ctx.params.get("verbose_exc", False),
         )
 
-        journal: typing.Optional[auditlog_journal_port.AuditlogJournal] = None
-        if configuration.application.is_logged():
-            # For type checkers only
-            assert configuration.application.app_auditlog_collection is not None
+        if configuration is use_cases.UseCaseFailed:
+            ctx.fail("Configuration failed.")
 
-            journal = auditlog_journals.AuditlogJournalImpl(
-                auditlog_collection=configuration.application.app_auditlog_collection,
-                max_records=configuration.application.app_auditlog_limit,
-            )
-
-        application = applications.MigrationAppImpl(
-            configuration=configuration,
-            repository=repositories.MigrationRepositoryImpl(
-                migrations_collection=configuration.application.app_migrations_collection,
-            ),
-            auditlog_journal=journal,
-            startup_hooks=configuration.application.app_startup_hooks,
+        application = applications.MigrationAppImpl(configuration,)
+        return typing.cast(
+            _T,
+            ctx.invoke(command, *args, application=application, **kwargs)
         )
-        return typing.cast(_T, ctx.invoke(command, *args, application=application, **kwargs))
 
     return typing.cast(
         typing.Callable[_P, _T],
@@ -74,11 +56,15 @@ def cli() -> None:
     is_flag=True,
 )
 @click.argument(
+    "application_name",
+    type=click.STRING,
+)
+@click.argument(
     "expression",
     default="",
     type=click.STRING,
 )
-@application_aware
+@pass_application
 def upgrade(
     application: applications.MigrationApp,
     expression: str,
@@ -105,11 +91,15 @@ def upgrade(
     is_flag=True,
 )
 @click.argument(
+    "application_name",
+    type=click.STRING,
+)
+@click.argument(
     "expression",
     default="",
     type=click.STRING,
 )
-@application_aware
+@pass_application
 def downgrade(
     application: applications.MigrationApp,
     expression: str,
@@ -140,7 +130,7 @@ def downgrade(
     default="",
     type=click.STRING,
 )
-@application_aware
+@pass_application
 def walk(
     application: applications.MigrationApp,
     expression: str,
@@ -174,7 +164,7 @@ def walk(
     "--verbose-exc",
     is_flag=True,
 )
-@application_aware
+@pass_application
 def create_template(
     application: applications.MigrationApp,
     name: str,
@@ -207,7 +197,7 @@ def create_template(
     default=-1,
     required=False,
 )
-@application_aware
+@pass_application
 def status(
     application: applications.MigrationApp,
     depth: int,
@@ -229,14 +219,14 @@ def status(
     "--start",
     type=click.STRING,
     default=None,
-    nargs=2,
+    nargs="?",
 )
 @click.option(
     "-e",
     "--end",
     type=click.STRING,
     default=None,
-    nargs=2,
+    nargs="?",
 )
 @click.option(
     "-l",
@@ -253,32 +243,24 @@ def status(
     "--verbose-exc",
     is_flag=True,
 )
-@application_aware
+@click.argument(
+    "application_name",
+    type=click.STRING,
+)
+@pass_application
 def auditlog(
     application: applications.MigrationApp,
-    start: typing.Optional[typing.Tuple[str, str]],
-    end: typing.Optional[typing.Tuple[str, str]],
+    start: typing.Optional[typing.Sequence[str]],
+    end: typing.Optional[typing.Sequence[str]],
     limit: int,
     ascending: bool,
     verbose_exc: bool,
     **params: typing.Any,
 ) -> None:
-    # TODO: Implement a more flexible mechanism for handling time.
-    def _convert(
-        date_parts: typing.Optional[typing.Tuple[str, str]],
-    ) -> typing.Optional[datetime.datetime]:
-        if date_parts is None:
-            return None
-
-        return datetime.datetime.strptime(
-            " ".join(date_parts),
-            "%Y-%m-%d %H:%M:%S",
-        )
-
     presenters.show_auditlog_entries(
         application=application,
-        start=_convert(start),
-        end=_convert(end),
+        start=start,
+        end=end,
         limit=limit,
         verbose_exc=verbose_exc,
         ascending_date=ascending,
@@ -294,7 +276,7 @@ def auditlog(
     "--verbose-exc",
     is_flag=True,
 )
-@application_aware
+@pass_application
 def version(application: applications.MigrationApp, verbose: bool, **params: typing.Any) -> None:
     presenters.show_version(application=application, verbose=verbose)
 

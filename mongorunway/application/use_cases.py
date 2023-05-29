@@ -1,6 +1,30 @@
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "ALL",
+    "ExitCode",
+    "FAILURE",
+    "MINUS",
+    "PLUS",
+    "SUCCESS",
+    "UseCaseFailed",
+    "UseCaseFailedOr",
+    "create_migration_file",
+    "downgrade",
+    "get_auditlog_entries",
+    "get_pushed_version",
+    "get_status",
+    "read_configuration",
+    "render_downgrade_results",
+    "render_error",
+    "render_upgrade_results",
+    "upgrade",
+    "usecase",
+    "walk",
+)
+
 import datetime
+import functools
 import sys
 import traceback
 import typing
@@ -10,19 +34,19 @@ from mongorunway.application import output
 from mongorunway.application import ux
 from mongorunway.application.services import migration_service
 from mongorunway.application.services import status_service
+from mongorunway.application.ports import config_reader as config_reader_port
 
 if typing.TYPE_CHECKING:
     from mongorunway.application import applications
     from mongorunway.application import config
-    from mongorunway.application.ports import config_reader as config_reader_port
     from mongorunway.domain import migration_auditlog_entry as domain_auditlog_entry
-
-_PLUS: typing.Final[str] = "+"
-_MINUS: typing.Final[str] = "-"
-_ALL: typing.Final[str] = "all"
 
 _T = typing.TypeVar("_T")
 _P = typing.ParamSpec("_P")
+
+PLUS: typing.Final[str] = "+"
+MINUS: typing.Final[str] = "-"
+ALL: typing.Final[str] = "all"
 
 ExitCode: typing.TypeAlias = int
 
@@ -54,108 +78,143 @@ ExitCode
 UseCaseFailedOr = typing.Union[_T, UseCaseFailed]
 
 
-def upgrade(
-    application: applications.MigrationApp,
-    expression: str,
-    verbose: bool,
-    verbose_exc: bool,
-) -> ExitCode:
-    try:
-        if expression == _PLUS:
-            # +
-            upgraded_count, executed_in = util.timeit_func(application.upgrade_once)
-        elif expression == _ALL:
-            # 'all'
-            upgraded_count, executed_in = util.timeit_func(application.upgrade_all)
-        elif expression.startswith(_PLUS):
-            # +count
-            upgraded_count, executed_in = util.timeit_func(
-                application.upgrade_to,
-                int(expression[1:]) + (application.session.get_current_version() or 0),
-            )
-        else:
-            # digit
-            upgraded_count, executed_in = util.timeit_func(
-                application.upgrade_to,
-                int(expression),
-            )
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        if type(exc) is ValueError:
-            output.print_error(f"Invalid expression for upgrade: {expression!r}")
+def usecase(
+    *,
+    has_verbose_exc: bool,
+) -> typing.Callable[[typing.Callable[_P, _T]], typing.Callable[_P, ExitCode]]:
+    def decorator(func: typing.Callable[_P, _T]) -> typing.Callable[_P, ExitCode]:
+        @functools.wraps(func)
+        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> ExitCode:
+            try:
+                func(*args, **kwargs)
+            except BaseException as exc:
+                render_error(
+                    exc,
+                    verbose=kwargs["verbose_exc"] if has_verbose_exc else False,
+                )
+                return FAILURE
 
-        return FAILURE
+            return SUCCESS
 
-    _render_upgrade_results(verbose, upgraded_count, executed_in)
+        return wrapper
 
-    return SUCCESS
+    return decorator
 
 
+def query_usecase(
+    *,
+    has_verbose_exc: bool,
+) -> typing.Callable[[typing.Callable[_P, _T]], typing.Callable[_P, UseCaseFailedOr[_T]]]:
+    def decorator(func: typing.Callable[_P, _T]) -> typing.Callable[_P, UseCaseFailedOr[_T]]:
+        @functools.wraps(func)
+        def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> UseCaseFailedOr[_T]:
+            try:
+                callback = func(*args, **kwargs)
+            except BaseException as exc:
+                render_error(
+                    exc,
+                    verbose=kwargs["verbose_exc"] if has_verbose_exc else False,
+                )
+                return UseCaseFailed
+
+            return callback
+
+        return wrapper
+
+    return decorator
+
+
+@usecase(has_verbose_exc=True)
 def downgrade(
     application: applications.MigrationApp,
     expression: str,
     verbose: bool,
     verbose_exc: bool,
 ) -> ExitCode:
-    try:
-        if expression == _MINUS:
-            # -
-            downgraded_count, executed_in = util.timeit_func(application.downgrade_once)
-        elif expression == _ALL:
-            # 'all'
-            downgraded_count, executed_in = util.timeit_func(application.downgrade_all)
-        elif expression.startswith(_MINUS):
-            # -count
-            downgraded_count, executed_in = util.timeit_func(
-                application.downgrade_to,
-                int(expression) + (application.session.get_current_version() or 0),
-            )
-        else:
-            # digit
-            if not expression[0].isdigit():
-                raise ValueError(f"The following expression cannot be applied: {expression!r}")
+    func, args = None, ()
+    if expression.isdigit():
+        func, args = application.downgrade_to, (int(expression),)
+    elif len(expression) > 1 and expression.startswith(MINUS):
+        func, args = application.downgrade_to, (
+            int(expression) + application.session.get_current_version() or 0,
+        )
+    elif expression == MINUS:
+        func = application.downgrade_once
+    elif expression == ALL:
+        func = application.downgrade_all
 
-            downgraded_count, executed_in = util.timeit_func(
-                application.downgrade_to,
-                int(expression),
-            )
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        if type(exc) is ValueError:
-            output.print_error(f"Invalid expression for downgrade: {expression!r}")
+    if func is None:
+        raise ValueError(f"The following expression cannot be applied: {expression!r}")
 
-        return FAILURE
-
-    _render_downgrade_results(verbose, downgraded_count, executed_in)
+    render_downgrade_results(
+        verbose,
+        *util.timeit_func(func, *args),
+    )
 
     return SUCCESS
 
 
+@usecase(has_verbose_exc=True)
+def upgrade(
+    application: applications.MigrationApp,
+    expression: str,
+    verbose: bool,
+    verbose_exc: bool,
+) -> ExitCode:
+    func, args = None, ()
+    if expression.isdigit():
+        func, args = application.upgrade_to, (int(expression),)
+    elif expression.startswith(PLUS):
+        func, args = application.upgrade_to, (
+            int(expression[1:]) + (application.session.get_current_version() or 0),
+        )
+    elif expression == PLUS:
+        func = application.upgrade_once
+    elif expression == ALL:
+        func = application.upgrade_all
+
+    if func is None:
+        raise ValueError(f"The following expression cannot be applied: {expression!r}")
+
+    render_upgrade_results(
+        verbose,
+        *util.timeit_func(func, *args),
+    )
+
+    return SUCCESS
+
+
+@usecase(has_verbose_exc=True)
 def walk(
     application: applications.MigrationApp,
     expression: str,
     verbose: bool,
     verbose_exc: bool,
 ) -> ExitCode:
-    try:
-        if expression[0] not in {_PLUS, _MINUS}:
-            raise ValueError(
-                "This command can only go in positive or negative order. "
-                "Therefore, the expression must begin with either the '+' or '-' character."
-            )
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        if type(exc) is ValueError:
-            output.print_error(f"Invalid expression for walk: {expression!r}")
+    if expression[0] not in {PLUS, MINUS}:
+        raise ValueError(
+            "This command can only go in positive or negative order. "
+            "Therefore, the expression must begin with either the '+' "
+            "or '-' character."
+        )
 
-        return FAILURE
+    if expression.startswith(MINUS):
+        return downgrade(
+            application=application,
+            expression=expression,
+            verbose=verbose,
+            verbose_exc=verbose_exc,
+        )
 
-    if expression.startswith(_MINUS):
-        return downgrade(application, expression, verbose, verbose_exc=verbose_exc)
+    return upgrade(
+        application=application,
+        expression=expression,
+        verbose=verbose,
+        verbose_exc=verbose_exc,
+    )
 
-    return upgrade(application, expression, verbose, verbose_exc=verbose_exc)
 
-
+@usecase(has_verbose_exc=True)
 def create_migration_file(
     application: applications.MigrationApp,
     migration_filename: str,
@@ -166,15 +225,12 @@ def create_migration_file(
         output.print_info("Migration version is not specified, using auto-incrementation...")
 
     service = migration_service.MigrationService(application.session)
-    try:
-        service.create_migration_file_template(migration_filename, migration_version)
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        return FAILURE
+    service.create_migration_file_template(migration_filename, migration_version)
 
     return SUCCESS
 
 
+@query_usecase(has_verbose_exc=True)
 def get_auditlog_entries(
     application: applications.MigrationApp,
     verbose_exc: bool,
@@ -183,92 +239,67 @@ def get_auditlog_entries(
     limit: typing.Optional[int] = None,
     ascending_date: bool = True,
 ) -> UseCaseFailedOr[typing.Sequence[domain_auditlog_entry.MigrationAuditlogEntry]]:
-    try:
-        history = application.session.history(
-            start=start,
-            end=end,
-            limit=limit,
-            ascending_date=ascending_date,
-        )
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        return UseCaseFailed
+    history = application.session.history(
+        start=start,
+        end=end,
+        limit=limit,
+        ascending_date=ascending_date,
+    )
 
     return tuple(history)
 
 
+@query_usecase(has_verbose_exc=True)
 def get_status(
     application: applications.MigrationApp,
     verbose_exc: bool,
     pushed_depth: int = -1,
 ) -> UseCaseFailedOr[typing.Tuple[bool, int]]:
-    try:
-        all_pushed_successfully = status_service.check_if_all_pushed_successfully(
-            application=application,
-            depth=pushed_depth,
-        )
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        return UseCaseFailed
+    all_pushed_successfully = status_service.check_if_all_pushed_successfully(
+        application=application,
+        depth=pushed_depth,
+    )
 
     return all_pushed_successfully, pushed_depth
 
 
+@query_usecase(has_verbose_exc=True)
 def get_pushed_version(
     application: applications.MigrationApp,
     verbose_exc: bool,
 ) -> UseCaseFailedOr[typing.Optional[int]]:
-    try:
-        version = application.session.get_current_version()
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        return UseCaseFailed
-
+    version = application.session.get_current_version()
     return version
 
 
-def init(configuration: config.Config, verbose_exc: bool) -> ExitCode:
-    try:
-        ux.init_logging(configuration)
-        ux.init_migration_directory(configuration)
-        ux.init_migration_collection(configuration)
-        ux.configure_migration_indexes(configuration)
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        return FAILURE
-
-    return SUCCESS
-
-
+@query_usecase(has_verbose_exc=True)
 def read_configuration(
-    config_filepath: str,
+    config_filepath: typing.Optional[str],
     *,
     app_name: str,
     verbose_exc: bool,
 ) -> UseCaseFailedOr[config.Config]:
-    # This part of the infrastructure layer is used only in this use case and
-    # is a necessary solution.
-    from mongorunway.infrastructure.config_readers import IniFileConfigReader
-
     reader: typing.Optional[config_reader_port.ConfigReader] = None
-    if config_filepath is None or config_filepath.endswith(".ini"):  # Default reader
-        reader = IniFileConfigReader(app_name)
+    if config_filepath is None or config_filepath.endswith(".yaml"):  # Default reader
+        reader = (
+            util.import_obj(
+                "mongorunway.infrastructure.config_readers.YamlConfigReader",
+                cast=config_reader_port.ConfigReader,
+            )
+            .from_application_name(app_name)
+        )
 
     if reader is None:
         output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
         output.print_error("Undefined configuration file type.")
         return UseCaseFailed
 
-    try:
-        configuration = reader.read_config(config_filepath)
-    except BaseException as exc:
-        _render_error(exc, verbose=verbose_exc)
-        return UseCaseFailed
+    configuration = reader.read_config(config_filepath)
 
     return configuration
 
 
-def _render_error(exc: BaseException, verbose: bool = False) -> None:
+def render_error(exc: BaseException, verbose: bool = False) -> None:
     output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
     output.print_warning(type(exc).__name__ + " : " + str(exc))
 
@@ -277,7 +308,7 @@ def _render_error(exc: BaseException, verbose: bool = False) -> None:
         output.print_error("\n".join(exc_info))
 
 
-def _render_downgrade_results(verbose: bool, downgraded_count: int, executed_in: float) -> None:
+def render_downgrade_results(verbose: bool, downgraded_count: int, executed_in: float) -> None:
     output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
     output.verbose_print(verbose, "Verbose mode enabled.")
     output.print_success(f"Successfully downgraded {downgraded_count} migration(s).")
@@ -287,7 +318,7 @@ def _render_downgrade_results(verbose: bool, downgraded_count: int, executed_in:
     )
 
 
-def _render_upgrade_results(verbose: bool, upgraded_count: int, executed_in: float) -> None:
+def render_upgrade_results(verbose: bool, upgraded_count: int, executed_in: float) -> None:
     output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
     output.verbose_print(verbose, "Verbose mode enabled.")
     output.print_success(f"Successfully upgraded {upgraded_count} migration(s).")

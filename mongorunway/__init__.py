@@ -26,6 +26,7 @@ __license__ = "MIT"
 __url__ = "https://github.com/Animatea/mongorunway"
 
 from mongorunway.api import *
+from mongorunway.domain.migration import *
 from mongorunway.domain.migration_business_rule import *
 from mongorunway.domain.migration_command import *
 from mongorunway.infrastructure.commands import *

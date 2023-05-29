@@ -18,13 +18,11 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""The main interface for managing migrations is the `Migration` class.
-It represents a single migration that can be applied or reverted in a database.
-"""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
     "Migration",
+    "MigrationProcess",
     "MigrationReadModel",
 )
 
@@ -37,25 +35,6 @@ if typing.TYPE_CHECKING:
 
 
 class Migration:
-    """This class provides methods for upgrading and downgrading a database schema using
-    a sequence of MigrationCommand instances.
-
-    Parameters
-    ----------
-    name : str
-        The name of the migration.
-    version : int
-        The version number of the migration.
-    checksum : str
-        A hash checksum of the migration contents.
-    description : str
-        A description of the migration.
-    upgrade_commands : sequence of MigrationCommand
-        A sequence of commands to upgrade the database schema.
-    downgrade_commands : sequence of MigrationCommand
-        A sequence of commands to downgrade the database schema.
-    """
-
     __slots__: typing.Sequence[str] = (
         "_name",
         "_version",
@@ -87,46 +66,18 @@ class Migration:
 
     @property
     def name(self) -> str:
-        """Returns the name of the migration.
-
-        Returns
-        -------
-        str
-            The name of the migration.
-        """
         return self._name
 
     @property
     def version(self) -> int:
-        """Get the version of the migration.
-
-        Returns
-        -------
-        int
-            The version of the migration.
-        """
         return self._version
 
     @property
     def checksum(self) -> str:
-        """Get the checksum of the migration.
-
-        Returns
-        -------
-        str
-            The checksum of the migration.
-        """
         return self._checksum
 
     @property
     def description(self) -> str:
-        """Get the description of the migration.
-
-        Returns
-        -------
-        str
-            The description of the migration.
-        """
         return self._description
 
     @property
@@ -135,46 +86,16 @@ class Migration:
 
     @property
     def upgrade_process(self) -> MigrationProcess:
-        """Get the upgrade commands for the migration.
-
-        Returns
-        -------
-        Sequence[MigrationCommand]
-            A sequence of MigrationCommand objects representing the upgrade commands
-            for the migration.
-        """
         return self._upgrade_process
 
     @property
     def downgrade_process(self) -> MigrationProcess:
-        """Get the downgrade commands for the object.
-
-        Returns
-        -------
-        Sequence[MigrationCommand]
-            A sequence of MigrationCommand objects representing the downgrade commands
-            for the migration.
-        """
         return self._downgrade_process
 
     def set_is_applied(self, value: bool, /) -> None:
         self._is_applied = value
 
     def to_dict(self, *, unique: bool = False) -> typing.Dict[str, typing.Any]:
-        """Convert the object to a dictionary representation for MongoDB.
-
-        Parameters
-        ----------
-        unique : bool, optional
-            If True, will add a unique _id key to the dictionary, which will be
-            equal to the version of the current migration. Defaults to False.
-
-        Returns
-        -------
-        Dict[str, Any]
-            A dictionary representation of the object suitable for storing in a
-            MongoDB collection.
-        """
         mapping = {
             "name": self.name,
             "version": self.version,
@@ -191,68 +112,19 @@ class Migration:
 
 @dataclasses.dataclass
 class MigrationReadModel:
-    """Represents a read model of a migration that provides information about the migration.
-
-    Attributes
-    ----------
-    name : str
-        The name of the migration.
-    version : int
-        The version of the migration.
-    checksum : str
-        The checksum of the migration.
-    description : str
-        The description of the migration.
-    """
-
     name: str
-    """The name of the migration."""
-
     version: int
-    """The version of the migration."""
-
     checksum: str
-    """The checksum of the migration."""
-
     description: str
-    """The description of the migration."""
-
     is_applied: bool
-    """"""
 
     @classmethod
     def from_dict(cls, mapping: typing.MutableMapping[str, typing.Any], /) -> MigrationReadModel:
-        """Create a MigrationReadModel instance from a dictionary.
-
-        Parameters
-        ----------
-        mapping : typing.MutableMapping[str, typing.Any]
-            A dictionary containing the attributes of the migration.
-
-        Returns
-        -------
-        MigrationReadModel
-            An instance of MigrationReadModel initialized with the attributes
-            from the dictionary.
-        """
         mapping.pop("_id", None)  # For mongo records
         return cls(**mapping)
 
     @classmethod
     def from_migration(cls, migration: Migration, /) -> MigrationReadModel:
-        """Create a MigrationReadModel instance from a Migration instance.
-
-        Parameters
-        ----------
-        migration : Migration
-            A Migration instance to create the MigrationReadModel instance from.
-
-        Returns
-        -------
-        MigrationReadModel
-            An instance of MigrationReadModel initialized with the attributes
-            from the Migration instance.
-        """
         return cls(
             name=migration.name,
             version=migration.version,

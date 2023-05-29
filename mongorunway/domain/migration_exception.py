@@ -18,7 +18,6 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""This module defines a hierarchy of exceptions used throughout the migration application."""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
@@ -39,22 +38,12 @@ if typing.TYPE_CHECKING:
 
 
 class MigrationError(Exception):
-    """Base class for all migration errors.
-
-    This class is inherited by all other migration-related exception classes.
-    """
-
     __slots__: typing.Sequence[str] = ()
 
     pass
 
 
 class MigrationFailedError(MigrationError):
-    """Error that is raised when a migration fails to apply.
-
-    This exception is raised when a migration command fails to execute properly.
-    """
-
     __slots__: typing.Sequence[str] = ()
 
     pass
@@ -70,16 +59,6 @@ class MigrationBusinessRuleBrokenError(Exception):
 
 
 class MigrationTransactionFailedError(MigrationFailedError):
-    """Raised when a migration transaction fails.
-
-    This exception is raised when a transaction of a migration fails during execution.
-
-    Parameters
-    ----------
-    migration : Migration
-        The migration that caused the error.
-    """
-
     __slots__: typing.Sequence[str] = ("failed_migration",)
 
     def __init__(self, migration: domain_migration.Migration, /) -> None:
@@ -91,8 +70,6 @@ class MigrationTransactionFailedError(MigrationFailedError):
 
 
 class NothingToUpgradeError(MigrationFailedError):
-    """An exception raised when there are no pending migrations to upgrade."""
-
     __slots__: typing.Sequence[str] = ()
 
     def __str__(self) -> str:
@@ -100,8 +77,6 @@ class NothingToUpgradeError(MigrationFailedError):
 
 
 class NothingToDowngradeError(MigrationFailedError):
-    """An exception raised when there are no applied migrations to downgrade."""
-
     __slots__: typing.Sequence[str] = ()
 
     def __str__(self) -> str:
@@ -109,25 +84,12 @@ class NothingToDowngradeError(MigrationFailedError):
 
 
 class MigrationHookError(MigrationError):
-    """Base error occurred while executing a migration hook."""
-
     __slots__: typing.Sequence[str] = ()
 
     pass
 
 
 class MigrationFileChangedError(MigrationHookError):
-    """Exception raised when a migration file is changed.
-
-    This exception is raised when a migration file is modified after it has been
-    applied to the database.
-
-    Parameters
-    ----------
-    migration : Migration
-        The migration that caused the error.
-    """
-
     __slots__: typing.Sequence[str] = (
         "failed_migration_name",
         "failed_migration_version",

@@ -17,7 +17,8 @@ _SelfT = typing.TypeVar("_SelfT", bound="MigrationAuditlogEntry")
 class MigrationAuditlogEntry:
     session_id: bson.Binary
     transaction_name: str
-    migration: domain_migration.MigrationReadModel
+    migration_read_model: domain_migration.MigrationReadModel
+    date_fmt: str
     date: datetime.datetime = dataclasses.field(default_factory=datetime.datetime.utcnow)
     exc_name: typing.Optional[str] = None
     exc_message: typing.Optional[str] = None
@@ -49,3 +50,6 @@ class MigrationAuditlogEntry:
                 ) from exc
 
         return self
+
+    def format_date(self) -> str:
+        return self.date.strftime(self.date_fmt)

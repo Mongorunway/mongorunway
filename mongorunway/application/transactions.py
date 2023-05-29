@@ -38,9 +38,11 @@ import typing
 
 from mongorunway import mongo
 from mongorunway import util
+from mongorunway.application import session
+from mongorunway.application.services import validation_service
+from mongorunway.domain import migration_context as domain_context
 
 if typing.TYPE_CHECKING:
-    from mongorunway.application import session
     from mongorunway.domain import migration as domain_migration
 
 _LOGGER: typing.Final[logging.Logger] = logging.getLogger("mongorunway.transactions")
@@ -49,15 +51,11 @@ _SelfT = typing.TypeVar("_SelfT", bound="MigrationTransaction")
 TransactionCode: typing.TypeAlias = int
 
 TRANSACTION_SUCCESS: typing.Final[TransactionCode] = 1
-"""An integer constant indicating that a transaction has been successfully applied."""
 
 TRANSACTION_NOT_APPLIED: typing.Final[TransactionCode] = 0
-"""An integer constant indicating that a transaction has not been applied."""
 
 
 class MigrationTransaction(abc.ABC):
-    """Abstract base class for implementing migration transactions."""
-
     __slots__: typing.Sequence[str] = ()
 
     @property
@@ -67,7 +65,11 @@ class MigrationTransaction(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def create(cls: typing.Type[_SelfT], migration_session: session.MigrationSession) -> _SelfT:
+    def create(
+        cls: typing.Type[_SelfT],
+        migration_session: session.MigrationSession,
+        migration: domain_migration.Migration,
+    ) -> _SelfT:
         ...
 
     @abc.abstractmethod
@@ -81,15 +83,7 @@ class MigrationTransaction(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def apply(self, migration: domain_migration.Migration) -> None:
-        """
-        Apply the given migration to the database.
-
-        Parameters
-        ----------
-        migration : Migration
-            The migration to apply.
-        """
+    def apply_to(self, session_context) -> None:
         ...
 
     @abc.abstractmethod
@@ -98,7 +92,6 @@ class MigrationTransaction(abc.ABC):
         migration: domain_migration.Migration,
         mongo_session: mongo.ClientSession,
     ) -> None:
-        """Commit the transaction."""
         ...
 
     @abc.abstractmethod
@@ -107,25 +100,27 @@ class MigrationTransaction(abc.ABC):
         migration: domain_migration.Migration,
         mongo_session: mongo.ClientSession,
     ) -> None:
-        """Rollback the transaction."""
-        ...
-
-    @abc.abstractmethod
-    def ensure_migration(self) -> domain_migration.Migration:
         ...
 
 
 class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
-    def __init__(self, migration_session: session.MigrationSession) -> None:
-        self.client = migration_session.session_config.application.app_client
-        self.migration_session = migration_session
-
-        self._migration: typing.Optional[domain_migration.Migration] = None
+    def __init__(
+        self,
+        migration_session: session.MigrationSession,
+        migration: domain_migration.Migration,
+    ) -> None:
+        self._client = migration_session.session_client
+        self._migration_session = migration_session
+        self._migration = migration
         self._exc_val: typing.Optional[BaseException] = None
 
     @classmethod
-    def create(cls: typing.Type[_SelfT], migration_session: session.MigrationSession) -> _SelfT:
-        return cls(migration_session)  # type: ignore[call-arg]
+    def create(
+        cls: typing.Type[_SelfT],
+        migration_session: session.MigrationSession,
+        migration: domain_migration.Migration,
+    ) -> _SelfT:
+        return cls(migration_session, migration)  # type: ignore[call-arg]
 
     @property
     def exc_val(self) -> typing.Optional[BaseException]:
@@ -135,46 +130,45 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
         return self.exc_val is not None
 
     @typing.final
-    def apply(self, migration: domain_migration.Migration) -> None:
-        self._migration = migration
+    def apply_to(self, session_context) -> None:
+        process = self.get_process(self._migration)
+        validation_service.validate_migration_process(process, self._client)
 
-        process = self.get_process(migration)
-        with self.client.start_session() as mongo_session:
-            session_id = util.hexlify(mongo_session.session_id["id"])
-            _LOGGER.info("Connected to MongoDB session (%s)", session_id)
+        mongodb_session_id = util.hexlify(session_context.mongodb_session_id)
+        try:
+            waiting_commands_count = len(process.commands)
+            with session_context.start_transaction():
+                _LOGGER.info(
+                    "Beginning a transaction in MongoDB session (%s) for (%s) process.",
+                    mongodb_session_id,
+                    process.name,
+                )
 
-            self.migration_session.validate_migration_process(
-                process,
-                mongo_session.client,
-            )
+                for command_idx, command in enumerate(process.commands, 1):
+                    command.execute(self._build_command_context(session_context))
 
-            try:
-                with mongo_session.start_transaction():
                     _LOGGER.info(
-                        "Beginning a transaction in session (%s) for (%s) process.",
-                        session_id,
-                        process.name,
+                        "%s command successfully applied (%s of %s).",
+                        command.name,
+                        command_idx,
+                        waiting_commands_count,
                     )
 
-                    for command in process.commands:
-                        _LOGGER.info("Executing %s command...", command.name)
-                        command.execute(self.client)
+                self.commit(self._migration, session_context)
 
-                    self.commit(migration, mongo_session)
+        except Exception as exc:
+            _LOGGER.error(
+                "Transaction execution in MongoDB session (%s) ended with error %s.",
+                mongodb_session_id,
+                type(exc).__name__,
+            )
+            _LOGGER.debug("Error details of transaction execution: %s", str(exc))
 
-            except Exception as exc:
-                _LOGGER.error(
-                    "Transaction execution in session (%s) ended with error %s.",
-                    session_id,
-                    type(exc).__name__,
-                )
-                _LOGGER.debug("Error details of transaction execution: %s", str(exc))
+            self._exc_val = exc
+            self.rollback(self._migration, session_context)
 
-                self._exc_val = exc
-                self.rollback(migration, mongo_session)
-
-        if mongo_session.has_ended:
-            _LOGGER.info("MongoDB session %s has ended.", session_id)
+        if session_context.has_ended:
+            _LOGGER.info("MongoDB session %s has ended.", mongodb_session_id)
 
     @typing.final
     def rollback(
@@ -202,13 +196,6 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
         )
         self._commit(migration, mongo_session)
 
-    @typing.final
-    def ensure_migration(self) -> domain_migration.Migration:
-        if self._migration is None:
-            raise ValueError("Migration is not applied to current transaction.")
-
-        return self._migration
-
     @abc.abstractmethod
     def _rollback(
         self,
@@ -224,6 +211,14 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
         mongo_session: mongo.ClientSession,
     ) -> None:
         pass
+
+    def _build_command_context(self, session_context) -> domain_context.MigrationContext:
+        return domain_context.MigrationContext(
+            mongorunway_session_id=util.hexlify(self._migration_session.session_id),
+            mongodb_session_id=util.hexlify(session_context.mongodb_session_id),
+            client=self._migration_session.session_client,
+            database=self._migration_session.session_database,
+        )
 
 
 class UpgradeTransaction(AbstractMigrationTransaction):
@@ -238,7 +233,7 @@ class UpgradeTransaction(AbstractMigrationTransaction):
         mongo_session: mongo.ClientSession,
     ) -> None:
         mongo_session.abort_transaction()
-        self.migration_session.set_applied_flag(migration, False)
+        self._migration_session.set_applied_flag(migration, False)
 
     def _commit(
         self,
@@ -246,7 +241,7 @@ class UpgradeTransaction(AbstractMigrationTransaction):
         mongo_session: mongo.ClientSession,
     ) -> None:
         mongo_session.commit_transaction()
-        self.migration_session.set_applied_flag(migration, True)
+        self._migration_session.set_applied_flag(migration, True)
 
 
 class DowngradeTransaction(AbstractMigrationTransaction):
@@ -261,7 +256,7 @@ class DowngradeTransaction(AbstractMigrationTransaction):
         mongo_session: mongo.ClientSession,
     ) -> None:
         mongo_session.abort_transaction()
-        self.migration_session.set_applied_flag(migration, True)
+        self._migration_session.set_applied_flag(migration, True)
 
     def _commit(
         self,
@@ -269,4 +264,4 @@ class DowngradeTransaction(AbstractMigrationTransaction):
         mongo_session: mongo.ClientSession,
     ) -> None:
         mongo_session.commit_transaction()
-        self.migration_session.set_applied_flag(migration, False)
+        self._migration_session.set_applied_flag(migration, False)

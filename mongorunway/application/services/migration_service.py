@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "migration_file_template",
+    "MigrationService",
+)
+
 import os
 import string
 import typing
@@ -24,16 +29,14 @@ import mongorunway
 version = $version
 
 
+@mongorunway.migration
 def upgrade() -> typing.Sequence[mongorunway.MigrationCommand]:
     return $upgrade_commands
 
 
+@mongorunway.migration
 def downgrade() -> typing.Sequence[mongorunway.MigrationCommand]:
     return $downgrade_commands
-
-
-def rules() -> typing.Sequence[mongorunway.MigrationBusinessRule]:
-    pass
 """
 )
 
@@ -42,19 +45,7 @@ class MigrationService:
     def __init__(self, app_session: session.MigrationSession) -> None:
         self._session = app_session
 
-    def get_migration_from_filename(self, migration_name: str) -> domain_migration.Migration:
-        """Returns a Migration object corresponding to the migration with the given filename.
-
-        Parameters
-        ----------
-        migration_name : str
-            The name of the migration file to retrieve the Migration object for.
-
-        Returns
-        -------
-        Migration
-            A Migration object representing the migration with the given filename.
-        """
+    def get_migration(self, migration_name: str) -> domain_migration.Migration:
         module = util.get_module(
             self._session.session_config.filesystem.scripts_dir, migration_name
         )
@@ -75,32 +66,14 @@ class MigrationService:
         return migration
 
     @typing.no_type_check
-    def get_migrations_from_directory(self) -> typing.Sequence[domain_migration.Migration]:
-        """Returns a list of Migration objects representing all the migrations in the
-        migrations directory.
-
-        Returns
-        -------
-        Sequence[Migration]
-            A list of Migration objects representing all the migrations in the
-            migrations directory.
-
-        Raises
-        ------
-        ValueError
-            If the versioning start specified in the configuration is not found in the
-            migrations directory.
-        ImportError
-            If `strict_naming` configuration parameter is False and migration file does
-            not contain `version` variable.
-        """
+    def get_migrations(self) -> typing.Sequence[domain_migration.Migration]:
         directory = self._session.session_config.filesystem.scripts_dir
         filename_strategy = self._session.session_config.filesystem.filename_strategy
 
         if self._session.session_config.filesystem.strict_naming:
             # All migrations are in the correct order by name.
             return [
-                self.get_migration_from_filename(
+                self.get_migration(
                     filename_strategy.transform_migration_filename(migration_name, position),
                 )
                 for position, migration_name in enumerate(
@@ -125,7 +98,7 @@ class MigrationService:
                         f"'version' variable."
                     )
 
-                migrations[migration_version] = self.get_migration_from_filename(
+                migrations[migration_version] = self.get_migration(
                     migration_name,
                 )
 
@@ -140,23 +113,8 @@ class MigrationService:
         migration_filename: str,
         migration_version: typing.Optional[int] = None,
     ) -> None:
-        """Creates a new migration file template with the provided filename and version.
-
-        Parameters
-        ----------
-        migration_filename : str
-            The name of the migration file to be created.
-        migration_version : int, optional
-            The version number of the migration. If not provided, the next version number
-            will be used based on the existing migrations. Defaults to None.
-
-        Raises
-        ------
-        ValueError
-            If a migration with the same version number already exists.
-        """
         if migration_version is None:
-            migration_version = len(self.get_migrations_from_directory()) + 1
+            migration_version = len(self.get_migrations()) + 1
 
         if self._session.has_migration_with_version(migration_version):
             raise ValueError(f"Migration with version {migration_version} already exist.")
@@ -184,8 +142,8 @@ class MigrationService:
                 migration_filename,
             ),
             "w",
-        ) as f:
-            f.write(
+        ) as file:
+            file.write(
                 migration_file_template.safe_substitute(
                     version=migration_version,
                     upgrade_commands=[],

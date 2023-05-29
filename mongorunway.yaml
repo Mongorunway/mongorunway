@@ -1,0 +1,63 @@
+mongorunway:
+  filesystem:
+    scripts_dir: "test_app/migrations"
+    filename_strategy: "mongorunway.infrastructure.filename_strategies.NumericalFilenameStrategy"
+    strict_naming: true
+
+  applications:
+    test:
+      app_client:
+        init:
+          host: "localhost"
+          port: 27017
+
+      app_database: "TestDatabase"
+
+      app_repository:
+        type: "mongorunway.infrastructure.persistence.repositories.MigrationsRepositoryImpl"
+        kwargs:
+          collection: "migrations"
+        initializer: "mongorunway.infrastructure.initializers.default_repository_initializer"
+
+      app_auditlog_journal:
+        type: "mongorunway.infrastructure.persistence.auditlog_journal.AuditlogJournalImpl"
+        kwargs:
+          collection: "auditlog"
+        initializer: "mongorunway.infrastructure.initializers.default_auditlog_journal_initializer"
+
+      app_timezone: "UTC"
+      app_subscribed_events:
+        mongorunway.domain.migration_event.StartingEvent:
+          - "mongorunway.infrastructure.event_handlers.sync_scripts_with_queues"
+          - "Prioritized[2, mongorunway.infrastructure.event_handlers.recalculate_migrations_checksum]"
+          - "Prioritized[1, mongorunway.infrastructure.event_handlers.raise_if_migrations_checksum_mismatch]"
+      app_auditlog_limit: 5
+
+      # Booleans
+      use_auditlog: true
+      use_logging: true
+      use_indexing: true
+      use_schema_validation: true
+      raise_on_transaction_failure: true
+
+  logging:
+    version: 1
+    disable_existing_loggers: false
+
+    formatters:
+      simpleFormatter:
+        format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        datefmt: "%Y-%m-%d %H:%M:%S"
+
+    handlers:
+      consoleHandler:
+        class: "logging.StreamHandler"
+        level: "DEBUG"
+        formatter: "simpleFormatter"
+
+    loggers:
+      root:
+        level: "INFO"
+        handlers:
+          - "consoleHandler"
+        propagate: 0

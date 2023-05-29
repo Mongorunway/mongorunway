@@ -18,7 +18,6 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""This module contains services for working with migration versions."""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = ("get_previous_migration_version",)
@@ -32,17 +31,4 @@ if typing.TYPE_CHECKING:
 def get_previous_migration_version(
     migration: typing.Union[domain_migration.Migration, domain_migration.MigrationReadModel], /
 ) -> typing.Optional[int]:
-    """Returns the version number of the previous migration of a given migration object.
-
-    Parameters
-    ----------
-    migration : Migration
-        The migration object for which to retrieve the previous version number.
-
-    Returns
-    -------
-    Optional[int]
-        The version number of the previous migration, or None if the provided migration
-        object has no previous version.
-    """
     return (migration.version - 1) or None

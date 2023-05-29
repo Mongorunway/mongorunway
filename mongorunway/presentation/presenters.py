@@ -23,8 +23,8 @@ def show_auditlog_entries(
 ) -> None:
     entries_result = use_cases.get_auditlog_entries(
         application,
-        start=start,
-        end=end,
+        start=formatters.format_app_date(application, start),
+        end=formatters.format_app_date(application, end),
         limit=limit,
         verbose_exc=verbose_exc,
         ascending_date=ascending_date,
@@ -35,7 +35,7 @@ def show_auditlog_entries(
             terminaltables.SingleTable(
                 [
                     ["Date", "Is Failed", "Transaction Type", "Migration"],
-                    *(formatters.auditlog_entry_fields(entry) for entry in entries_result),
+                    *(formatters.format_auditlog_entry(entry) for entry in entries_result),
                 ]
             ).table
         )
@@ -48,11 +48,7 @@ def show_version(application: applications.MigrationApp, verbose: bool) -> None:
         presentation = f"Current applied version is {version_result}"
         if verbose:
             all_applied_migrations_len = len(application.session.get_all_migration_models())
-            presentation = formatters.one_of_all(
-                version_result,
-                all_applied_migrations_len,
-                concat_to=presentation,
-            )
+            presentation += (f" " + f"({version_result} of {all_applied_migrations_len})")
 
         output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
         output.print_success(presentation)
@@ -78,10 +74,14 @@ def show_status(
             presentation = f"Applying failed in depth {pushed_depth!r}"
 
         if verbose:
-            presentation = formatters.one_of_all(
-                application.session.get_current_version(),
-                len(application.session.get_all_migration_models()),
-                concat_to=presentation,
+            presentation += (
+                f" "
+                + (
+                    f"({application.session.get_current_version()}"
+                    f" "
+                    f"of {len(application.session.get_all_migration_models())})"
+                )
             )
+
             output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
             output.print_info(presentation)

@@ -32,6 +32,7 @@ from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
     "get_module",
+    "import_obj",
     "convert_string",
     "build_mapping_values",
     "build_optional_kwargs",
@@ -69,9 +70,7 @@ def convert_string(val: typing.Literal["false", "no"], /) -> typing.Literal[Fals
 
 
 @typing.overload
-def convert_string(
-    val: typing.Literal["none", "nothing", "undefined"], /
-) -> typing.Literal[None]:
+def convert_string(val: typing.Literal["none", "nothing", "undefined"], /) -> typing.Literal[None]:
     ...
 
 
@@ -99,6 +98,9 @@ def convert_string(value: str, /) -> typing.Union[int, bool, str, None]:
     --------
     SIMPLE_NUMBERS
     """
+    if not isinstance(value, str):
+        return value
+
     value = value.strip().lower()
     if value in {"true", "yes", "ok"}:
         return True
@@ -168,10 +170,37 @@ def build_mapping_values(
 
 
 def build_optional_kwargs(
-    keys: typing.Iterable[str],
-    mapping: typing.MutableMapping[_T, typing.Any],
+    keys: typing.Iterable[_T],
+    mapping: typing.MutableMapping[typing.Hashable, typing.Any],
 ) -> typing.MutableMapping[_T, typing.Any]:
-    """"""
+    r"""Converts string values in a mutable mapping.
+
+    Converts string values in a mutable mapping to corresponding named
+    objects. If the value of a dictionary is None, the loop will move
+    to the next iteration. Returns a mutable mapping with the keys passed
+    to this function.
+
+    Parameters
+    ----------
+    keys : typing.Iterable[_T]
+        Keys of optional values to be converted if their value is not None.
+    mapping : typing.MutableMapping[typing.Hashable, typing.Any]
+        Mutable mapping whose values need to be converted.
+
+    Returns
+    -------
+    typing.MutableMapping[_T, typing.Any]
+        Mutable mapping with all non-None values converted.
+
+    Example
+    -------
+    >>> build_optional_kwargs([1, 2], {1: None, 2: "ok", 3: "no"})
+    {2: True}
+
+    See Also
+    --------
+    convert_string
+    """
     kwargs = {}
 
     for key in keys:
@@ -234,6 +263,35 @@ def get_module(directory: str, filename: str) -> types.ModuleType:
     assert spec.loader is not None  # For type checkers only
     spec.loader.exec_module(module)
     return module
+
+
+def import_obj(obj_path: str, /, cast: _T) -> _T:
+    r"""Imports a class from the specified module.
+
+    Imports a class from the specified module. The module path should
+    be specified using dot notation, with the class itself at the end.
+
+    Parameters
+    ----------
+    obj_path : str
+        The path to the obj to be imported.
+    cast : _T
+        The type to which the value should be cast. This is used to
+        provide more clarity in the code. This parameter is also useful
+        for compatibility with type checkers.
+
+    Returns
+    -------
+    _T
+        The type to which we cast the imported obj.
+
+    See Also
+    --------
+    importlib.import_module
+    """
+    module_name, obj_name = obj_path.rsplit(".", maxsplit=1)
+    module = importlib.import_module(module_name)
+    return typing.cast(cast, getattr(module, obj_name))
 
 
 def is_valid_filename(directory: str, filename: str) -> bool:
@@ -319,7 +377,14 @@ def timeit_func(
 
 
 class SystemTimer:
-    __slots__ = (
+    """Implementation of a system timer for code benchmarks.
+
+    This class represents an implementation of a system timer for measuring
+    the execution time of a specific code block. It is a context manager and
+    can be conveniently used with the `with` statement.
+    """
+
+    __slots__: typing.Sequence[str] = (
         "_start",
         "_executed_in",
     )
@@ -330,10 +395,30 @@ class SystemTimer:
 
     @property
     def start(self) -> float:
+        """Returns the start time of the benchmark.
+
+        Returns the system time that was set in the `__enter__` method of
+        this class.
+
+        Returns
+        -------
+        float
+            The system time when the code block started execution.
+        """
         return self._start
 
     @property
     def executed_in(self) -> float:
+        """Returns the execution time of a code block.
+
+        Returns the time it took for the code block to execute. The
+        calculation is done using the system time from the `time` module.
+
+        Returns
+        -------
+        float
+            The execution time of the code block.
+        """
         return self._executed_in
 
     def __enter__(self) -> SystemTimer:

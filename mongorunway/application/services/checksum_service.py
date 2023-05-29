@@ -18,7 +18,6 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""This module contains services for working with migration file checksums."""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = ("calculate_migration_checksum",)
@@ -31,23 +30,6 @@ if typing.TYPE_CHECKING:
 
 
 def calculate_migration_checksum(module: domain_module.MigrationModule, /) -> str:
-    """Calculates the checksum of a migration module.
-
-    Parameters
-    ----------
-    module : MigrationModule
-        The migration module to calculate the checksum for.
-
-    Returns
-    -------
-    str
-        The checksum of the migration module.
-
-    Raises
-    ------
-    FileNotFoundError
-        If the migration module's file location cannot be found.
-    """
     with open(module.location, "r") as f:
         file_data = f.read().encode()
         return hashlib.md5(file_data).hexdigest()

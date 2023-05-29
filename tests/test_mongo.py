@@ -22,33 +22,36 @@ from __future__ import annotations
 
 import typing
 
-from mongorunway.application.services import migration_service
+import pymongo
+from pymongo import database
+from pymongo import client_session
 
-if typing.TYPE_CHECKING:
-    from mongorunway.application import applications
+from mongorunway.mongo import DocumentType
+from mongorunway.mongo import Database
+from mongorunway.mongo import Client
+from mongorunway.mongo import Collection
+from mongorunway.mongo import ClientSession
 
 
-def check_if_all_pushed_successfully(
-    application: applications.MigrationApp,
-    *,
-    depth: int = -1,
-) -> bool:
-    service = migration_service.MigrationService(application.session)
+def test_document_type() -> None:
+    # Base document type for mongorunway
+    assert typing.get_args(DocumentType) == (str, typing.Any)
 
-    directory_state = service.get_migrations()
-    if not directory_state:
-        raise ValueError("Migration files does not exist.")
 
-    applied_state = application.session.get_migration_models_by_flag(is_applied=True)
-    if not applied_state:
-        raise ValueError("There are currently no applied migrations.")
+def test_database() -> None:
+    assert typing.get_origin(Database) is database.Database
+    assert typing.get_args(Database)[0] == typing.Dict[str, typing.Any]
 
-    if depth > 0:
-        if depth > (dir_length := len(directory_state)):
-            raise ValueError(
-                f"Depth ({depth}) cannot be more than migration files count ({dir_length})."
-            )
 
-        return len(directory_state[:depth]) == len(applied_state[:depth])
+def test_client() -> None:
+    assert typing.get_origin(Client) is pymongo.MongoClient
+    assert typing.get_args(Client)[0] == typing.Dict[str, typing.Any]
 
-    return len(directory_state) == len(applied_state)
+
+def test_collection() -> None:
+    assert typing.get_origin(Collection) is pymongo.collection.Collection
+    assert typing.get_args(Collection)[0] == typing.Dict[str, typing.Any]
+
+
+def test_client_session() -> None:
+    assert ClientSession is client_session.ClientSession

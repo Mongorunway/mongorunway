@@ -1,32 +1,37 @@
 from __future__ import annotations
 
-__all__ = ("create_app", "raise_if_migration_version_mismatch", "migration", "migration_with_rule")
+__all__: typing.Sequence[str] = (
+    "create_app",
+    "raise_if_migration_version_mismatch",
+    "migration",
+    "migration_with_rule",
+)
 
 import collections.abc
-import functools
+import os
+import pathlib
+import types
 import typing
 
 from mongorunway.application import applications
 from mongorunway.application import use_cases
 from mongorunway.domain import migration as domain_migration
-from mongorunway.infrastructure.persistence import auditlog_journals
-from mongorunway.infrastructure.persistence import repositories
+from mongorunway.domain import migration_business_rule as domain_rule
+from mongorunway.application import config
 
 if typing.TYPE_CHECKING:
     from mongorunway.application.applications import MigrationApp
-    from mongorunway.application.ports import auditlog_journal as auditlog_journal_port
-    from mongorunway.domain import migration_business_rule as domain_rule
-
-_P = typing.ParamSpec("_P")
-_T = typing.TypeVar("_T")
 
 
 @typing.overload
 def create_app(
     name: str,
-    config_filepath: str,
+    configuration: typing.Optional[
+        typing.Union[os.PathLike[str], str, pathlib.Path, config.Config]
+    ] = None,
     *,
     raise_on_none: typing.Literal[True] = True,
+    verbose_exc: bool = False,
 ) -> MigrationApp:
     ...
 
@@ -34,41 +39,34 @@ def create_app(
 @typing.overload
 def create_app(
     name: str,
-    config_filepath: str,
+    configuration: typing.Optional[
+        typing.Union[os.PathLike[str], str, pathlib.Path, config.Config]
+    ] = None,
     *,
     raise_on_none: typing.Literal[False] = False,
+    verbose_exc: bool = False,
 ) -> typing.Optional[MigrationApp]:
     ...
 
 
 def create_app(
     name: str,
-    config_filepath: str,
+    configuration: typing.Optional[
+        typing.Union[os.PathLike[str], str, pathlib.Path, config.Config]
+    ] = None,
     *,
     raise_on_none: bool = False,
     verbose_exc: bool = False,
 ) -> typing.Union[MigrationApp, typing.Optional[MigrationApp]]:
-    configuration = use_cases.read_configuration(
-        config_filepath=config_filepath,
-        app_name=name,
-        verbose_exc=verbose_exc,
-    )
-    if configuration is not use_cases.UseCaseFailed:
-        auditlog_journal: typing.Optional[auditlog_journal_port.AuditlogJournal] = None
-        if configuration.application.is_logged():
-            auditlog_journal = auditlog_journals.AuditlogJournalImpl(
-                auditlog_collection=configuration.application.app_auditlog_collection,
-                max_records=configuration.application.app_auditlog_limit,
-            )
-
-        return applications.MigrationAppImpl(
-            configuration=configuration,
-            repository=repositories.MigrationRepositoryImpl(
-                migrations_collection=configuration.application.app_migrations_collection,
-            ),
-            auditlog_journal=auditlog_journal,
-            startup_hooks=configuration.application.app_startup_hooks,
+    if not isinstance(configuration, config.Config) or configuration is None:
+        configuration = use_cases.read_configuration(
+            config_filepath=str(configuration) if configuration is not None else configuration,
+            app_name=name,
+            verbose_exc=verbose_exc,
         )
+
+    if configuration is not use_cases.UseCaseFailed:
+        return applications.MigrationAppImpl(configuration=configuration)
 
     if raise_on_none:
         raise ValueError(f"Creation of {name!r} application is failed.")
@@ -85,36 +83,39 @@ def raise_if_migration_version_mismatch(
 
     if (current_version := (app.session.get_current_version() or 0)) != expected_version:
         raise ValueError(
-            f"Migration version mismatch. "
+            f"Migration version mismatch."
+            " "
             f"Actual: {current_version!r}, but {expected_version!r} expected."
         )
 
 
-def migration(process_func: typing.Callable[_P, _T], /) -> domain_migration.MigrationProcess:
-    # @functools.wraps(process_func)
-    # def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> domain_migration.MigrationProcess:
-    commands = process_func()
-    if isinstance(commands, domain_migration.MigrationProcess):
-        return commands
+def migration(process_func: types.FunctionType, /) -> domain_migration.MigrationProcess:
+    func_callback = process_func()
+    if isinstance(func_callback, domain_migration.MigrationProcess):
+        return func_callback
 
-    if not isinstance(commands, collections.abc.MutableSequence):
+    if not isinstance(func_callback, collections.abc.Sequence):
         raise ValueError(
             f"Migration process func {process_func!r} must return sequence of commands."
         )
 
     version = getattr(process_func, "__globals__", {}).get("version", None)
     if version is None:
-        raise ValueError(
-            f"Migration module at {process_func.__code__.co_filename!r} "
-            f"should have 'version' variable."
-        )
+        func_file = ""
+        if hasattr(process_func, "__code__"):
+            func_file = process_func.__code__.co_filename
+
+        raise ValueError(f"Migration module {func_file!r} should have 'version' variable.")
 
     return domain_migration.MigrationProcess(
-        commands,
+        func_callback,
         migration_version=version,
-        name=getattr(process_func, "__name__", ""),
+        name=getattr(process_func, "__name__", "UNDEFINED_PROCESS"),
     )
 
 
 def migration_with_rule(rule: domain_rule.MigrationBusinessRule, /):
+    if not isinstance(rule, domain_rule.MigrationBusinessRule):
+        raise ValueError(f"Rule must be instance of {domain_rule.MigrationBusinessRule!r}.")
+
     return lambda p: p.add_rule(rule)

@@ -1,15 +1,42 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import typing
 import types
 
+import bson
 import pytest
 
-from mongorunway.util import try_convert_string
+from mongorunway.util import convert_string
 from mongorunway.util import build_mapping_values
 from mongorunway.util import build_optional_kwargs
 from mongorunway.util import get_module
-from mongorunway.util import is_valid_migration_filename
+from mongorunway.util import is_valid_filename
+from mongorunway.util import import_obj
+from mongorunway.util import hexlify
+
+
+class FakeUtilClass:
+    pass
 
 
 @pytest.mark.parametrize("value, expected", [
@@ -35,7 +62,7 @@ from mongorunway.util import is_valid_migration_filename
     ("  hello  ", "hello")
 ])
 def test_try_convert_string(value: str, expected: typing.Any) -> None:
-    assert try_convert_string(value) == expected
+    assert convert_string(value) == expected
 
 
 @pytest.mark.parametrize("mapping, expected", [
@@ -121,4 +148,32 @@ def test_get_module(filename, content, tmp_path):
 ])
 def test_is_valid_migration_filename(filename, expected, tmp_path):
     with open(str(tmp_path / filename), "w"):
-        assert is_valid_migration_filename(str(tmp_path), filename) == expected
+        assert is_valid_filename(str(tmp_path), filename) == expected
+
+
+@pytest.mark.parametrize(
+    "binary, expected_hex",
+    [
+        (bson.binary.Binary(b"abc"), "616263"),
+        (bson.binary.Binary(b"\x00\x01\x02"), "000102"),
+        (bson.binary.Binary(b""), ""),
+    ]
+)
+def test_hexlify(binary: bson.binary.Binary, expected_hex: str) -> None:
+    assert hexlify(binary) == expected_hex
+
+
+@pytest.mark.parametrize(
+    "class_path, cast, expected_obj",
+    [
+        ("tests.test_util.FakeUtilClass", FakeUtilClass, FakeUtilClass),
+        ("typing.Type", typing.Type[typing.Any], typing.Type),
+    ]
+)
+def test_import_obj(
+    class_path: str,
+    cast: typing.Type[typing.Any],
+    expected_obj: typing.Any,
+) -> None:
+    imported_obj = import_obj(class_path, cast)
+    assert imported_obj == expected_obj

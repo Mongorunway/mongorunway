@@ -18,9 +18,6 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""The module contains an interface for a database migration audit log that allows recording
-completed database migrations and retrieving information about the migration history.
-"""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = ("AuditlogJournal",)
@@ -34,45 +31,28 @@ if typing.TYPE_CHECKING:
 
 
 class AuditlogJournal(abc.ABC):
-    """The AuditlogJournal class is an interface to migration audit logs.
-    It provides methods to record completed database migrations and retrieve
-    information about the migration history. The class is used by the migration
-    application to record completed database migrations and provide information
-    about the migration history.
-    """
-
     __slots__: typing.Sequence[str] = ()
+
+    @property
+    @abc.abstractmethod
+    def max_records(self) -> typing.Optional[int]:
+        ...
+
+    @abc.abstractmethod
+    def set_max_records(self, value: typing.Optional[int], /) -> None:
+        ...
 
     @abc.abstractmethod
     def append_entries(
         self,
         entries: typing.Sequence[domain_auditlog_entry.MigrationAuditlogEntry],
     ) -> None:
-        """Appends a sequence of audit log entries to the journal.
-
-        Parameters
-        ----------
-        entries: Sequence[Migration]
-            The sequence of audit log entries to be appended.
-        """
         ...
 
     @abc.abstractmethod
     def load_entries(
         self, limit: typing.Optional[int] = None
     ) -> typing.Sequence[domain_auditlog_entry.MigrationAuditlogEntry]:
-        """Returns a sequence of audit log entries from the journal.
-
-        Parameters
-        ----------
-        limit: Optional[int]
-            The maximum number of entries to return. If not specified, all entries are returned.
-
-        Returns
-        -------
-        List[MigrationReadModel]
-            A sequence of audit log entries from the journal.
-        """
         ...
 
     @abc.abstractmethod
@@ -83,23 +63,4 @@ class AuditlogJournal(abc.ABC):
         limit: typing.Optional[int] = None,
         ascending_date: bool = True,
     ) -> typing.Iterator[domain_auditlog_entry.MigrationAuditlogEntry]:
-        """Returns an iterator over audit log entries within the specified time range.
-
-        Parameters
-        ----------
-        start: Optional[datetime.datetime]
-            The start time for the audit log entries. If not specified, all entries
-            before the end time are returned.
-        end: Optional[datetime.datetime]
-            The end time for the audit log entries. If not specified, all entries
-            after the start time are returned.
-        limit : Optional[int], default None
-            The maximum number of audit log entries to return. If not specified, all
-            entries within the specified time range are returned.
-
-        Yields
-        ------
-        MigrationReadModel
-            An audit log entry within the specified time range.
-        """
         ...

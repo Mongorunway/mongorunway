@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 import typing
 
 # In a public tool, dependency on CLI is an essential part, so in this case,
@@ -22,12 +23,25 @@ HEADING_MAP = {
     HEADING_LEVEL_THREE: ("-", False),
 }
 
-SYMBOLS = {INFO: "*", ERROR: "!", SUCCESS: "✓", WARNING: "⚠"}
-
 TOOL_HEADING_NAME: typing.Final[str] = "Mongorunway"
 
 
-def print(text: str = "", bold: bool = False, newline: bool = True, symbol: str = "") -> None:
+class AsciiOutput(str, enum.Enum):
+    INFO = 128712
+    DONE = 10003
+    WARNING = 9888
+    ERROR = 33
+
+    def __str__(self) -> str:
+        return chr(self.value)
+
+
+def print(
+    text: str = "",
+    bold: bool = False,
+    newline: bool = True,
+    symbol: str = "",
+) -> None:
     if symbol:
         text = symbol + " " + text
 
@@ -70,16 +84,16 @@ def print_heading(level: int, text: str, indent: bool = True) -> None:
 
 
 def print_success(text: str, bold: bool = False) -> None:
-    print(text, bold=bold, symbol=SYMBOLS[SUCCESS])
+    print(text, bold=bold, symbol=AsciiOutput.DONE)
 
 
 def print_error(text: str, bold: bool = False) -> None:
-    print(text, bold=bold, symbol=SYMBOLS[ERROR])
+    print(text, bold=bold, symbol=AsciiOutput.ERROR)
 
 
 def print_warning(text: str, bold: bool = False) -> None:
-    print(text, bold=bold, symbol=SYMBOLS[WARNING])
+    print(text, bold=bold, symbol=AsciiOutput.WARNING)
 
 
 def print_info(text: str, bold: bool = False) -> None:
-    print(text, bold=bold, symbol=SYMBOLS[INFO])
+    print(text, bold=bold, symbol=AsciiOutput.INFO)

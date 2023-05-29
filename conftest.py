@@ -25,17 +25,14 @@ import typing
 
 import pytest
 
-from mongorunway.domain.migration import Migration
-from mongorunway.application.ui import MigrationUiImpl
-from mongorunway.application.config import (
-    Config, ApplicationConfig, FileSystemConfig, MongoDBConfig
-)
-from mongorunway.infrastructure.persistence.repositories import MigrationRepositoryImpl
-from mongorunway.infrastructure.filename_strategies import MissingFilenameStrategy
+from mongorunway.domain import migration as domain_migration
+from mongorunway.application import applications
+from mongorunway.application import config
+from mongorunway.infrastructure.persistence import repositories
+from mongorunway.infrastructure import filename_strategies
 
 if typing.TYPE_CHECKING:
-    from mongorunway import types
-    from mongorunway.application.ui import MigrationUi
+    from mongorunway import mongo
 
 APP_NAME: typing.Final[str] = "test"
 
@@ -46,45 +43,50 @@ def tmp_migration_path(tmp_path: pathlib.Path) -> pathlib.Path:
 
 
 @pytest.fixture(scope="function")
-def config(mongodb: types.MongoDatabase, tmp_migration_path: pathlib.Path) -> Config:
-    cfg = Config(
-        application=ApplicationConfig(
-            disable_loggers=True,
-            name="test",
+def configuration(mongodb: mongo.Database, tmp_migration_path: pathlib.Path) -> config.Config:
+    cfg = config.Config(
+        application=config.ApplicationConfig(
+            use_logging=False,
+            use_auditlog=False,
+            use_indexing=False,
+            use_schema_validation=False,
+            app_client=mongodb.client,
+            app_database=mongodb,
+            app_name=APP_NAME,
+            app_repository=repositories.MigrationRepositoryImpl(mongodb.test_migrations),
+            app_auditlog_journal=None,
         ),
-        filesystem=FileSystemConfig(
-            config_dir="abc",
-            filename_strategy=MissingFilenameStrategy(),
+        filesystem=config.FileSystemConfig(
+            config_dir="",
+            filename_strategy=filename_strategies.MissingFilenameStrategy(),
             scripts_dir=str(tmp_migration_path),
         ),
-        mongodb=MongoDBConfig(
-            auditlog_collection=None,
-            client=mongodb.client,
-            database=mongodb,
-            migrations_collection=mongodb.test_migrations,
-        ),
+        logging_dict={},
     )
 
     return cfg
 
 
 @pytest.fixture(scope="function")
-def application(config: Config) -> MigrationUi:
-    return MigrationUiImpl(
-        config,
-        auditlog_journal=None,
-        repository=MigrationRepositoryImpl(config.mongodb.migrations_collection),
-        startup_hooks=config.application.startup_hooks,
-    )
+def application(configuration: config.Config) -> applications.MigrationApp:
+    return applications.MigrationAppImpl(configuration)
 
 
 @pytest.fixture(scope="function")
-def migration() -> Migration:
-    return Migration(
+def migration() -> domain_migration.Migration:
+    return domain_migration.Migration(
         checksum="123",
         description="123",
-        downgrade_commands=[],
-        upgrade_commands=[],
+        downgrade_process=domain_migration.MigrationProcess(
+            commands=[],
+            migration_version=1,
+            name="downgrade",
+        ),
+        upgrade_process=domain_migration.MigrationProcess(
+            commands=[],
+            migration_version=1,
+            name="upgrade",
+        ),
         version=1,
         name="123",
         is_applied=False,
@@ -92,12 +94,20 @@ def migration() -> Migration:
 
 
 @pytest.fixture(scope="function")
-def migration2() -> Migration:
-    return Migration(
+def migration2() -> domain_migration.Migration:
+    return domain_migration.Migration(
         checksum="321",
         description="321",
-        downgrade_commands=[],
-        upgrade_commands=[],
+        downgrade_process=domain_migration.MigrationProcess(
+            commands=[],
+            migration_version=2,
+            name="downgrade",
+        ),
+        upgrade_process=domain_migration.MigrationProcess(
+            commands=[],
+            migration_version=2,
+            name="upgrade",
+        ),
         version=2,
         name="321",
         is_applied=False,

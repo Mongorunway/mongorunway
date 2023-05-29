@@ -18,7 +18,6 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""Module provides an interface to execute database migration commands."""
 from __future__ import annotations
 
 __all__ = ("MigrationCommand",)
@@ -27,18 +26,12 @@ import abc
 import typing
 
 if typing.TYPE_CHECKING:
-    from mongorunway import mongo
+    from mongorunway.domain import migration_context as domain_context
 
-CommandSequence: typing.TypeAlias = typing.MutableSequence["MigrationCommand"]
+CommandSequence: typing.TypeAlias = typing.Sequence["MigrationCommand"]
 
 
 class MigrationCommand(abc.ABC):
-    """Abstract base class for all migration commands.
-
-    Defines the interface that all migration commands must implement.
-    A migration command is an operation to be executed in a MongoDB database.
-    """
-
     __slots__ = ()
 
     @property
@@ -46,12 +39,5 @@ class MigrationCommand(abc.ABC):
         return self.__class__.__name__
 
     @abc.abstractmethod
-    def execute(self, client: mongo.Client) -> None:
-        """Execute the migration command on the given MongoClient object.
-
-        Parameters
-        ----------
-        client : MongoClient[typing.Dict[str, typing.Any]]
-            A MongoClient object representing the connection to the MongoDB database.
-        """
+    def execute(self, ctx: domain_context.MigrationContext) -> None:
         ...

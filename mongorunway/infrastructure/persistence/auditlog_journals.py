@@ -18,7 +18,6 @@
 # CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
 # TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-"""The module contains an implementation of the migration audit log interface."""
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = ("AuditlogJournalImpl",)
@@ -38,14 +37,6 @@ if typing.TYPE_CHECKING:
 
 
 class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
-    """Base auditlog journal implementation.
-
-    Parameters
-    ----------
-    auditlog_collection : Collection[Dict[str, Any]]
-        Collection to store auditlog entries.
-    """
-
     __slots__: typing.Sequence[str] = ("_collection", "_max_records")
 
     def __init__(
@@ -56,17 +47,18 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
         self._max_records = max_records
         self._collection = auditlog_collection
 
+    @property
+    def max_records(self) -> typing.Optional[int]:
+        return self._max_records
+
+    def set_max_records(self, value: typing.Optional[int], /) -> None:
+        self._max_records = value
+
     def append_entries(
         self,
         entries: typing.Sequence[domain_auditlog_entry.MigrationAuditlogEntry],
     ) -> None:
-        """Appends a sequence of audit log entries to the journal.
 
-        Parameters
-        ----------
-        entries: Sequence[Migration]
-            The sequence of audit log entries to be appended.
-        """
         total = self._collection.count_documents(
             {},
             comment="Get the total count of documents to check the limit.",
@@ -93,18 +85,6 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
     def load_entries(
         self, limit: typing.Optional[int] = None
     ) -> typing.Sequence[domain_auditlog_entry.MigrationAuditlogEntry]:
-        """Returns a sequence of audit log entries from the journal.
-
-        Parameters
-        ----------
-        limit: Optional[int]
-            The maximum number of entries to return. If not specified, all entries are returned.
-
-        Returns
-        -------
-        List[AuditlogEntry]
-            A sequence of audit log entries from the journal.
-        """
         pipeline: typing.List[typing.Any] = [{"$match": {}}]
         if limit is not None:
             pipeline.append({"$limit": limit})
