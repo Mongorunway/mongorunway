@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 import collections
-import inspect
 import heapq
+import inspect
 import operator
 import typing
 
-from mongorunway.domain import migration_event_manager as domain_event_manager
 from mongorunway.domain import migration_event as domain_event
+from mongorunway.domain import migration_event_manager as domain_event_manager
 
 
 class MigrationEventManagerImpl(domain_event_manager.MigrationEventManager):
@@ -46,7 +46,8 @@ class MigrationEventManagerImpl(domain_event_manager.MigrationEventManager):
         self._event_dict[event].remove(handler)
 
     def get_event_handlers_for(
-        self, event: typing.Type[domain_event.MigrationEvent],
+        self,
+        event: typing.Type[domain_event.MigrationEvent],
     ) -> typing.MutableSequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]:
         return self._event_dict[event]
 
@@ -61,9 +62,7 @@ class MigrationEventManagerImpl(domain_event_manager.MigrationEventManager):
         try:
             index = handlers.index(handler)
         except ValueError:
-            raise ValueError(
-                f"Handler {handler!r} is not subscribed for {event!r}."
-            )
+            raise ValueError(f"Handler {handler!r} is not subscribed for {event!r}.")
 
         handlers.remove(handler)
         handlers.insert(
@@ -71,22 +70,20 @@ class MigrationEventManagerImpl(domain_event_manager.MigrationEventManager):
             domain_event.EventHandlerProxy(
                 handler=handler,
                 priority=priority,
-            )
+            ),
         )
 
     def unprioritize_handler_proxy(
         self,
         handler_proxy: domain_event.EventHandlerProxy,
-        event: typing.Type[domain_event.MigrationEvent]
+        event: typing.Type[domain_event.MigrationEvent],
     ) -> None:
         handlers = self._event_dict[event]
 
         try:
             index = handlers.index(handler_proxy)
         except ValueError:
-            raise ValueError(
-                f"Handler {handler_proxy!r} is not subscribed for {event!r}."
-            )
+            raise ValueError(f"Handler {handler_proxy!r} is not subscribed for {event!r}.")
 
         handlers.remove(handler_proxy)
         handlers.insert(index, handler_proxy.handler)

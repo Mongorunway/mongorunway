@@ -9,9 +9,9 @@ import logging
 import typing
 
 from mongorunway import mongo
+from mongorunway.domain import migration as domain_migration
 from mongorunway.domain import migration_business_rule as domain_rule
 from mongorunway.domain import migration_exception as domain_exception
-from mongorunway.domain import migration as domain_migration
 
 _LOGGER: typing.Final[logging.Logger] = logging.getLogger("mongorunway.validation_service")
 

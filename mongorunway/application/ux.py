@@ -139,7 +139,7 @@ def remove_migration_indexes(collection: mongo.Collection) -> None:
     indexes = collection.index_information()
 
     def _drop_index_if_exists(index: typing.Sequence[typing.Tuple[str, int]]) -> None:
-        translated_index = "_".join(f"{x}_{y}" for x, y in [_ for _ in index])
+        translated_index = mongo.translate_index(index)
 
         if translated_index in indexes:
             _LOGGER.info(
@@ -199,9 +199,7 @@ def init_logging(configuration: config.Config, /) -> None:
 def init_components(configuration: config.Config, /) -> None:
     journal = configuration.application.app_auditlog_journal
     if journal is not None:
-        journal.set_max_records(
-            configuration.application.app_auditlog_limit
-        )
+        journal.set_max_records(configuration.application.app_auditlog_limit)
 
 
 def init_migration_directory(configuration: config.Config, /) -> None:

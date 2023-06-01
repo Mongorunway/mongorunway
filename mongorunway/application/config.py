@@ -6,10 +6,10 @@ import attr
 
 if typing.TYPE_CHECKING:
     from mongorunway import mongo
-    from mongorunway.application.ports import filename_strategy as filename_strategy_port
-    from mongorunway.domain import migration_event as domain_event
-    from mongorunway.application.ports import repository as repository_port
     from mongorunway.application.ports import auditlog_journal as auditlog_journal_port
+    from mongorunway.application.ports import filename_strategy as filename_strategy_port
+    from mongorunway.application.ports import repository as repository_port
+    from mongorunway.domain import migration_event as domain_event
 
 VERSIONING_STARTS_FROM: typing.Final[int] = 1
 
@@ -46,7 +46,7 @@ class ApplicationConfig:
     )
     app_subscribed_events: typing.Mapping[
         typing.Type[domain_event.MigrationEvent],
-        typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]
+        typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]],
     ] = attr.field(factory=dict, repr=False)
     app_auditlog_limit: typing.Optional[int] = attr.field(
         default=None,

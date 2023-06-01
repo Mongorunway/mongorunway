@@ -19,6 +19,7 @@ from mongorunway.domain import migration_auditlog_entry as domain_auditlog_entry
 if typing.TYPE_CHECKING:
     from mongorunway.application import applications
     from mongorunway.application import config
+    from mongorunway.application.ports import filename_strategy as filename_strategy_port
     from mongorunway.domain import migration_event as domain_event
 
 TransactionT = typing.TypeVar("TransactionT", bound=transactions.MigrationTransaction)
@@ -33,6 +34,7 @@ def requires_auditlog(meth):
         if not self.uses_auditlog:
             raise ValueError("Auditlog is not enabled on this session.")
         return meth(self, *args, **kwargs)
+
     return wrapper
 
 
@@ -110,11 +112,6 @@ class MigrationSession(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def session_config(self) -> config.Config:
-        ...
-
-    @property
-    @abc.abstractmethod
     def session_id(self) -> bson.binary.Binary:
         ...
 
@@ -145,14 +142,34 @@ class MigrationSession(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def session_subscribed_events(self) -> typing.Sequence[
-        domain_event.EventHandlerProxyOr[domain_event.EventHandler]
-    ]:
+    def session_subscribed_events(
+        self,
+    ) -> typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]:
         ...
 
     @property
     @abc.abstractmethod
     def session_auditlog_limit(self) -> typing.Optional[int]:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def session_config_dir(self) -> str:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def session_scripts_dir(self) -> str:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def session_file_naming_strategy(self) -> filename_strategy_port.FilenameStrategy:
+        ...
+
+    @property
+    @abc.abstractmethod
+    def uses_strict_file_naming(self) -> bool:
         ...
 
     @property
@@ -265,7 +282,9 @@ class MigrationSession(abc.ABC):
 
     @abc.abstractmethod
     def begin_transaction(
-        self, transaction_type: typing.Type[TransactionT], migration: domain_migration.Migration,
+        self,
+        transaction_type: typing.Type[TransactionT],
+        migration: domain_migration.Migration,
     ) -> TransactionContext[TransactionT]:
         ...
 
@@ -281,10 +300,6 @@ class MigrationSessionImpl(MigrationSession):
 
         self._repository = configuration.application.app_repository
         self._auditlog_journal = configuration.application.app_auditlog_journal
-
-    @property
-    def session_config(self) -> config.Config:
-        return self._config
 
     @property
     def session_id(self) -> bson.binary.Binary:
@@ -311,15 +326,33 @@ class MigrationSessionImpl(MigrationSession):
         return self._config.application.app_name
 
     @property
-    def session_subscribed_events(self) -> typing.Mapping[
+    def session_subscribed_events(
+        self,
+    ) -> typing.Mapping[
         typing.Type[domain_event.MigrationEvent],
-        typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]
+        typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]],
     ]:
         return self._config.application.app_subscribed_events
 
     @property
     def session_auditlog_limit(self) -> typing.Optional[int]:
         return self._config.application.app_auditlog_limit
+
+    @property
+    def session_config_dir(self) -> str:
+        return self._config.filesystem.config_dir
+
+    @property
+    def session_scripts_dir(self) -> str:
+        return self._config.filesystem.scripts_dir
+
+    @property
+    def session_file_naming_strategy(self) -> filename_strategy_port.FilenameStrategy:
+        return self._config.filesystem.filename_strategy
+
+    @property
+    def uses_strict_file_naming(self) -> bool:
+        return self._config.filesystem.strict_naming
 
     @property
     def uses_schema_validation(self) -> bool:
@@ -446,14 +479,15 @@ class MigrationSessionImpl(MigrationSession):
     def begin_mongo_session(self) -> MongoSessionContext:
         ctx = MongoSessionContext(self.session_client.start_session())
         _LOGGER.info(
-            "Mongorunway MongoDB context successfully initialized "
-            "with MongoDB session id (%s)",
+            "Mongorunway MongoDB context successfully initialized " "with MongoDB session id (%s)",
             util.hexlify(ctx.mongodb_session_id),
         )
         return ctx
 
     def begin_transaction(
-        self, transaction_type: typing.Type[TransactionT], migration: domain_migration.Migration,
+        self,
+        transaction_type: typing.Type[TransactionT],
+        migration: domain_migration.Migration,
     ) -> TransactionContext[TransactionT]:
         ctx = TransactionContext(self, transaction_type, migration)
         _LOGGER.info(

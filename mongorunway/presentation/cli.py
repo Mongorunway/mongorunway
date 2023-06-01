@@ -29,11 +29,10 @@ def pass_application(command: typing.Callable[_P, _T]) -> typing.Callable[_P, _T
         if configuration is use_cases.UseCaseFailed:
             ctx.fail("Configuration failed.")
 
-        application = applications.MigrationAppImpl(configuration,)
-        return typing.cast(
-            _T,
-            ctx.invoke(command, *args, application=application, **kwargs)
+        application = applications.MigrationAppImpl(
+            configuration,
         )
+        return typing.cast(_T, ctx.invoke(command, *args, application=application, **kwargs))
 
     return typing.cast(
         typing.Callable[_P, _T],

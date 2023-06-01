@@ -3,9 +3,9 @@ from __future__ import annotations
 import logging
 import typing
 
+from mongorunway.application.services import migration_service
 from mongorunway.domain import migration_event as domain_event
 from mongorunway.domain import migration_exception as domain_exception
-from mongorunway.application.services import migration_service
 
 _LOGGER: typing.Final[logging.Logger] = logging.getLogger("root.event_handlers")
 

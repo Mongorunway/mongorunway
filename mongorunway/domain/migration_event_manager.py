@@ -40,7 +40,8 @@ class MigrationEventManager(abc.ABC):
 
     @abc.abstractmethod
     def get_event_handlers_for(
-        self, event: typing.Type[domain_event.MigrationEvent],
+        self,
+        event: typing.Type[domain_event.MigrationEvent],
     ) -> typing.MutableSequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]:
         ...
 
@@ -67,7 +68,7 @@ class MigrationEventManager(abc.ABC):
         *events: typing.Type[domain_event.MigrationEvent],
     ) -> typing.Callable[
         [domain_event.EventHandlerProxyOr[domain_event.EventHandlerT]],
-        domain_event.EventHandlerProxyOr[domain_event.EventHandlerT]
+        domain_event.EventHandlerProxyOr[domain_event.EventHandlerT],
     ]:
         ...
 

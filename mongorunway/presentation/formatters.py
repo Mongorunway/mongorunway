@@ -9,8 +9,8 @@ import datetime
 import typing
 
 if typing.TYPE_CHECKING:
-    from mongorunway.domain import migration_auditlog_entry as domain_auditlog_entry
     from mongorunway.application import applications
+    from mongorunway.domain import migration_auditlog_entry as domain_auditlog_entry
 
 
 def format_app_date(
@@ -22,7 +22,7 @@ def format_app_date(
 
     return datetime.datetime.strptime(
         " ".join(date_parts),
-        application.session.session_config.application.app_date_format,
+        application.session.session_date_format,
     )
 
 

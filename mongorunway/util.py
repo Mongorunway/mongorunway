@@ -32,6 +32,7 @@ from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
     "get_module",
+    "as_snake_case",
     "import_obj",
     "convert_string",
     "build_mapping_values",
@@ -42,6 +43,7 @@ __all__: typing.Sequence[str] = (
 
 import binascii
 import copy
+import distutils.util
 import importlib
 import importlib.util
 import os
@@ -55,8 +57,45 @@ import bson
 _P = typing.ParamSpec("_P")
 _T = typing.TypeVar("_T")
 
-SIMPLE_NUMBERS: typing.Final[typing.Pattern[str]] = re.compile(r"^[-]?\d+$")
-r"""A simple regular expression for numbers"""
+string_case_pattern: typing.Final[typing.Pattern[str]] = re.compile(
+    r"""
+    (?<=_)     # Positive lookbehind assertion for an underscore character
+    (\w+)      # Match and capture one or more word characters (alphanumeric or underscore)
+    |          # Or
+    ([A-Z][a-z]+)   # Match and capture an uppercase letter followed by one or more lowercase letters
+    |          # Or
+    ([a-z]+)   # Match and capture one or more lowercase letters
+    (?=[A-Z])  # Positive lookahead assertion for an uppercase letter
+    """,
+    flags=re.VERBOSE,
+)
+r"""Regular expression for string cases.
+
+The `string_case_pattern` constant is a regular expression pattern 
+used for matching different cases in strings.
+"""
+
+number_pattern: typing.Final[typing.Pattern[str]] = re.compile(
+    r"""
+    [-+]?                    # Matches an optional sign character (- or +)
+    (?:                       # Non-capturing group:
+       \d{1,3}                # Matches 1 to 3 digits
+       (?:_\d{3})*            # Matches an underscore (_) followed by exactly 3 digits, 
+                              #                             repeated zero or more times.
+       |                      # Alternation operator, allows matching either the previous pattern 
+                              #                                         or the following pattern.
+       [\d_]+                 # Matches one or more digits or underscores
+       (?:\.\d+)?             # Matches an optional decimal part, where \.\d+ matches a dot 
+                              #                                 followed by one or more digits.
+    )
+    """,
+    flags=re.VERBOSE,
+)
+r"""Regular expression for numeric values.
+
+The number_pattern constant is a regular expression pattern used for 
+matching numeric values.
+"""
 
 
 @typing.overload
@@ -74,7 +113,7 @@ def convert_string(val: typing.Literal["none", "nothing", "undefined"], /) -> ty
     ...
 
 
-def convert_string(value: str, /) -> typing.Union[int, bool, str, None]:
+def convert_string(value: str, /) -> typing.Union[int, float, bool, str, None]:
     r"""Converts a string.
 
     Converts a string depending on the received value. Case-insensitive
@@ -88,30 +127,42 @@ def convert_string(value: str, /) -> typing.Union[int, bool, str, None]:
 
     Returns
     -------
-    typing.Union[int, bool, str, None]
-        * True: {"true", "yes", "ok"}
-        * False: {"false", "no"}
-        * None: {"none", "nothing", "undefined"}
-        * int: If matches SIMPLE_NUMBERS pattern
+    typing.Union[int, float, bool, str, None]
+        None, if the value is one of {"none", "nothing", "undefined"}.
 
     See Also
     --------
-    SIMPLE_NUMBERS
+    number_pattern : Relationship.
+    distutils.util.strtobool : Relationship.
     """
     if not isinstance(value, str):
         return value
 
-    value = value.strip().lower()
-    if value in {"true", "yes", "ok"}:
-        return True
-    if value in {"false", "no"}:
-        return False
-    if value in {"none", "nothing", "undefined"}:
+    value_lower = value.lower().strip()
+    if value_lower in {"none", "nothing", "undefined"}:
         return None
-    if SIMPLE_NUMBERS.match(value):
-        return int(value)
 
-    return value
+    if digit_matches := re.findall(number_pattern, value_lower):
+        # For floating point numbers.
+        if len(digit_matches) > 1:
+            # Floating-point numbers should not have more than one decimal point.
+            digit_matches = digit_matches[:2]
+
+            # To handle numbers that use an underscore.
+            if any(m.count("_") for m in digit_matches):
+                return int("".join(digit_matches))
+
+            return float(".".join(digit_matches))
+
+        (digit_string,) = digit_matches
+        return int(digit_string)
+
+    try:
+        integer = distutils.util.strtobool(value_lower)
+    except ValueError:
+        return value
+
+    return bool(integer)
 
 
 def hexlify(binary: bson.binary.Binary) -> str:
@@ -338,6 +389,54 @@ def is_valid_filename(directory: str, filename: str) -> bool:
         and filename.endswith(".py")
         and not filename.startswith("__")
     )
+
+
+def as_snake_case(obj: typing.Any) -> str:
+    r"""Converts an object to snake case format.
+
+    Converts an object to snake case format regardless of the type of the
+    object passed. If the object is an instance of the `str` class, the object
+    itself will be converted. Otherwise, the `obj.__name__` will be taken,
+    and if it is not available, the attribute will be taken from the type of
+    the object passed.
+
+    Parameters
+    ----------
+    obj : typing.Any
+        The object, name, or value to be converted to snake case.
+
+    Returns
+    -------
+    str
+        The converted name of the object or its value in snake case. It may
+        return the original object if the object does not match the regular
+        expression.
+
+    Example
+    -------
+    >>> class DummyClass: pass
+    >>> dummy_obj = DummyClass()
+    >>> as_snake_case(DummyClass)
+    'dummy_class'
+    >>> as_snake_case(dummy_obj)  # Takes `type(dummy_obj).__name__` .
+    'dummy_class'
+    >>> as_snake_case("snake_case_str")
+    'snake_case_str'
+    >>> as_snake_case("camelCase")
+    'camel_case'
+    """
+    if not isinstance(obj, str):
+        obj_name = getattr(obj, "__name__", None)
+        obj = type(obj).__name__ if obj_name is None else obj_name
+
+    if obj.count("_"):
+        # Does not support mix of string cases and skips snake case.
+        return obj
+
+    obj_match = re.findall(string_case_pattern, obj)
+    obj_name = "_".join(("".join(i.lower() for i in g) for g in obj_match))
+
+    return obj_name
 
 
 def timeit_func(

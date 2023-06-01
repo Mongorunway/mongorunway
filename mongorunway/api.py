@@ -14,10 +14,10 @@ import types
 import typing
 
 from mongorunway.application import applications
+from mongorunway.application import config
 from mongorunway.application import use_cases
 from mongorunway.domain import migration as domain_migration
 from mongorunway.domain import migration_business_rule as domain_rule
-from mongorunway.application import config
 
 if typing.TYPE_CHECKING:
     from mongorunway.application.applications import MigrationApp

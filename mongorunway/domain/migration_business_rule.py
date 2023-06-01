@@ -1,6 +1,9 @@
 from __future__ import annotations
 
-__all__ = ("MigrationBusinessRule", "AbstractMigrationBusinessRule")
+__all__: typing.Sequence[str] = (
+    "MigrationBusinessRule",
+    "AbstractMigrationBusinessRule",
+)
 
 import abc
 import typing

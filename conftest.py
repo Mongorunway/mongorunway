@@ -38,12 +38,7 @@ APP_NAME: typing.Final[str] = "test"
 
 
 @pytest.fixture(scope="function")
-def tmp_migration_path(tmp_path: pathlib.Path) -> pathlib.Path:
-    return tmp_path / "test_migrations"
-
-
-@pytest.fixture(scope="function")
-def configuration(mongodb: mongo.Database, tmp_migration_path: pathlib.Path) -> config.Config:
+def configuration(mongodb: mongo.Database, tmp_path: pathlib.Path) -> config.Config:
     cfg = config.Config(
         application=config.ApplicationConfig(
             use_logging=False,
@@ -59,7 +54,7 @@ def configuration(mongodb: mongo.Database, tmp_migration_path: pathlib.Path) -> 
         filesystem=config.FileSystemConfig(
             config_dir="",
             filename_strategy=filename_strategies.MissingFilenameStrategy(),
-            scripts_dir=str(tmp_migration_path),
+            scripts_dir=str(tmp_path),
         ),
         logging_dict={},
     )

@@ -27,10 +27,10 @@ import typing
 import bson
 import pytest
 
-from mongorunway.presentation.formatters import format_auditlog_entry
-from mongorunway.presentation.formatters import format_app_date
-from mongorunway.domain import migration_auditlog_entry as domain_auditlog_entry
 from mongorunway.domain import migration as domain_migration
+from mongorunway.domain import migration_auditlog_entry as domain_auditlog_entry
+from mongorunway.presentation.formatters import format_app_date
+from mongorunway.presentation.formatters import format_auditlog_entry
 
 if typing.TYPE_CHECKING:
     from mongorunway.application import applications
@@ -38,10 +38,7 @@ if typing.TYPE_CHECKING:
 
 @pytest.mark.parametrize(
     "date_parts, expected_type",
-    [
-        (["2022-01-01", "12:34:56"], datetime.datetime),
-        (None, types.NoneType)
-    ]
+    [(["2022-01-01", "12:34:56"], datetime.datetime), (None, types.NoneType)],
 )
 def test_format_app_date(
     application: applications.MigrationApp,
@@ -60,7 +57,7 @@ def test_format_auditlog_entry(migration: domain_migration.Migration) -> None:
         date_fmt="%Y-%m-%d %H:%M:%S",
         date=datetime.datetime(2022, 1, 1, 12, 34, 56),
         exc_name=None,
-        exc_message=None
+        exc_message=None,
     )
 
     expected_result = [
@@ -69,7 +66,7 @@ def test_format_auditlog_entry(migration: domain_migration.Migration) -> None:
         "Transaction",
         f"Name: {migration.name}\n"
         f"Version: {migration.version}\n"
-        f"Is applied: {migration.is_applied}\n"
+        f"Is applied: {migration.is_applied}\n",
     ]
 
     result = format_auditlog_entry(entry)
@@ -84,7 +81,7 @@ def test_format_auditlog_entry_with_error(migration: domain_migration.Migration)
         date_fmt="%Y-%m-%d %H:%M:%S",
         date=datetime.datetime(2022, 1, 1, 12, 34, 56),
         exc_name="ValueError",
-        exc_message="Something went wrong"
+        exc_message="Something went wrong",
     )
 
     expected_result = [
@@ -93,7 +90,7 @@ def test_format_auditlog_entry_with_error(migration: domain_migration.Migration)
         "Transaction",
         f"Name: {migration.name}\n"
         f"Version: {migration.version}\n"
-        f"Is applied: {migration.is_applied}\n"
+        f"Is applied: {migration.is_applied}\n",
     ]
 
     result = format_auditlog_entry(entry)

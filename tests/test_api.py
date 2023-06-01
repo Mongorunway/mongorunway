@@ -27,8 +27,8 @@ import typing
 import pytest
 
 from mongorunway.api import create_app
-from mongorunway.api import migration_with_rule
 from mongorunway.api import migration
+from mongorunway.api import migration_with_rule
 from mongorunway.api import raise_if_migration_version_mismatch
 from mongorunway.application import applications
 from mongorunway.domain import migration as domain_migration

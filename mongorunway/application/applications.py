@@ -30,6 +30,7 @@ import functools
 import logging
 import typing
 
+from mongorunway.application import event_manager
 from mongorunway.application import session
 from mongorunway.application import traits
 from mongorunway.application import transactions
@@ -37,9 +38,8 @@ from mongorunway.application import ux
 from mongorunway.application.services import migration_service
 from mongorunway.application.services import versioning_service
 from mongorunway.domain import migration as domain_migration
-from mongorunway.domain import migration_exception as domain_exception
 from mongorunway.domain import migration_event as domain_event
-from mongorunway.application import event_manager
+from mongorunway.domain import migration_exception as domain_exception
 
 if typing.TYPE_CHECKING:
     from mongorunway.application import config
@@ -128,7 +128,8 @@ class MigrationApp(
 
     @abc.abstractmethod
     def get_event_handlers_for(
-        self, event: typing.Type[domain_event.MigrationEvent],
+        self,
+        event: typing.Type[domain_event.MigrationEvent],
     ) -> typing.MutableSequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]:
         ...
 
@@ -155,7 +156,7 @@ class MigrationApp(
         *events: typing.Type[domain_event.MigrationEvent],
     ) -> typing.Callable[
         [domain_event.EventHandlerProxyOr[domain_event.EventHandlerT]],
-        domain_event.EventHandlerProxyOr[domain_event.EventHandlerT]
+        domain_event.EventHandlerProxyOr[domain_event.EventHandlerT],
     ]:
         ...
 
@@ -227,7 +228,8 @@ class MigrationAppImpl(MigrationApp):
         return self._event_manager.unsubscribe_event_handler(handler, event)
 
     def get_event_handlers_for(
-        self, event: typing.Type[domain_event.MigrationEvent],
+        self,
+        event: typing.Type[domain_event.MigrationEvent],
     ) -> typing.MutableSequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]:
         return self._event_manager.get_event_handlers_for(event)
 
@@ -251,7 +253,7 @@ class MigrationAppImpl(MigrationApp):
         *events: typing.Type[domain_event.MigrationEvent],
     ) -> typing.Callable[
         [domain_event.EventHandlerProxyOr[domain_event.EventHandlerT]],
-        domain_event.EventHandlerProxyOr[domain_event.EventHandlerT]
+        domain_event.EventHandlerProxyOr[domain_event.EventHandlerT],
     ]:
         return self._event_manager.listen(*events)
 
@@ -263,9 +265,7 @@ class MigrationAppImpl(MigrationApp):
         pending_migration_model = self._session.get_migration_model_by_flag(is_applied=False)
         assert pending_migration_model is not None  # Only for type checkers
 
-        pending_migration = self._migration_service.get_migration(
-            pending_migration_model.name
-        )
+        pending_migration = self._migration_service.get_migration(pending_migration_model.name)
 
         with self._session.begin_mongo_session() as session_context:
             _LOGGER.info(
@@ -276,7 +276,8 @@ class MigrationAppImpl(MigrationApp):
             )
 
             with self._session.begin_transaction(
-                transactions.UpgradeTransaction, migration=pending_migration,
+                transactions.UpgradeTransaction,
+                migration=pending_migration,
             ) as transaction:
                 transaction.apply_to(session_context)
 
@@ -292,9 +293,7 @@ class MigrationAppImpl(MigrationApp):
         applied_migration_model = self._session.get_migration_model_by_flag(is_applied=True)
         assert applied_migration_model is not None  # Only for type checkers
 
-        applied_migration = self._migration_service.get_migration(
-            applied_migration_model.name
-        )
+        applied_migration = self._migration_service.get_migration(applied_migration_model.name)
 
         with self._session.begin_mongo_session() as session_context:
             _LOGGER.info(
@@ -305,7 +304,8 @@ class MigrationAppImpl(MigrationApp):
             )
 
             with self._session.begin_transaction(
-                transactions.DowngradeTransaction, migration=applied_migration,
+                transactions.DowngradeTransaction,
+                migration=applied_migration,
             ) as transaction:
                 transaction.apply_to(session_context)
 
@@ -340,7 +340,8 @@ class MigrationAppImpl(MigrationApp):
                 )
 
                 with self._session.begin_transaction(
-                    transactions.UpgradeTransaction, migration=migration,
+                    transactions.UpgradeTransaction,
+                    migration=migration,
                 ) as transaction:
                     transaction.apply_to(session_context)
 
@@ -377,7 +378,8 @@ class MigrationAppImpl(MigrationApp):
                 )
 
                 with self._session.begin_transaction(
-                    transactions.DowngradeTransaction, migration=migration,
+                    transactions.DowngradeTransaction,
+                    migration=migration,
                 ) as transaction:
                     transaction.apply_to(session_context)
 

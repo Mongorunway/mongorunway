@@ -32,9 +32,9 @@ import typing
 from mongorunway import util
 from mongorunway.application import output
 from mongorunway.application import ux
+from mongorunway.application.ports import config_reader as config_reader_port
 from mongorunway.application.services import migration_service
 from mongorunway.application.services import status_service
-from mongorunway.application.ports import config_reader as config_reader_port
 
 if typing.TYPE_CHECKING:
     from mongorunway.application import applications
@@ -281,13 +281,10 @@ def read_configuration(
 ) -> UseCaseFailedOr[config.Config]:
     reader: typing.Optional[config_reader_port.ConfigReader] = None
     if config_filepath is None or config_filepath.endswith(".yaml"):  # Default reader
-        reader = (
-            util.import_obj(
-                "mongorunway.infrastructure.config_readers.YamlConfigReader",
-                cast=config_reader_port.ConfigReader,
-            )
-            .from_application_name(app_name)
-        )
+        reader = util.import_obj(
+            "mongorunway.infrastructure.config_readers.YamlConfigReader",
+            cast=config_reader_port.ConfigReader,
+        ).from_application_name(app_name)
 
     if reader is None:
         output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)

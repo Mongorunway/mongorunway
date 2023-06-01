@@ -28,17 +28,18 @@ import typing
 
 import pymongo
 
+from mongorunway import mongo
 from mongorunway.application.ports import repository as repository_port
 from mongorunway.domain import migration as domain_migration
 
-if typing.TYPE_CHECKING:
-    from mongorunway import mongo
 
-
-class Index(str, enum.Enum):
-    UNAPPLIED = "is_applied_1"
-    APPLIED = "is_applied_1__id_-1"
+class Index(enum.Enum):
+    UNAPPLIED = [("is_applied", pymongo.ASCENDING)]
+    APPLIED = [("is_applied", pymongo.ASCENDING), ("_id", pymongo.DESCENDING)]
     UNIQUE = "_id_"
+
+    def translate(self) -> str:
+        return mongo.translate_index(self.value)
 
 
 class MigrationRepositoryImpl(repository_port.MigrationRepository):
@@ -61,7 +62,6 @@ class MigrationRepositoryImpl(repository_port.MigrationRepository):
 
     def has_migration(self, item: typing.Any, /) -> bool:
         version: typing.Optional[int] = getattr(item, "version", None)
-
         if version is None:
             return NotImplemented
 
@@ -75,7 +75,8 @@ class MigrationRepositoryImpl(repository_port.MigrationRepository):
                     {"_id": migration_version},
                     comment=(
                         f"Checking if the collection has a migration entry"
-                        f" with id {migration_version}.",
+                        f" "
+                        f"with id {migration_version}.",
                     ),
                 )
                 > 0
@@ -124,9 +125,12 @@ class MigrationRepositoryImpl(repository_port.MigrationRepository):
     def acquire_migration_models_by_flag(
         self, *, is_applied: bool
     ) -> typing.Iterator[domain_migration.MigrationReadModel]:
-        index = Index.APPLIED if is_applied else Index.UNAPPLIED
+        indexes = Index.APPLIED if is_applied else Index.UNAPPLIED
         with self._lock:
-            schemas = self._collection.find({"is_applied": is_applied}).hint(index)
+            schemas = mongo.hint_or_sort_cursor(
+                self._collection.find({"is_applied": is_applied}),
+                indexes=indexes.value,
+            )
 
         while True:
             try:
@@ -145,7 +149,10 @@ class MigrationRepositoryImpl(repository_port.MigrationRepository):
             if ascending_id:
                 # By default, the collection has already created an index for the
                 # unique key `_id` which sorts them in ascending order.
-                schemas = self._collection.find({}).hint(Index.UNIQUE)
+                schemas = mongo.hint_or_sort_cursor(
+                    self._collection.find({}),
+                    indexes=Index.UNIQUE.value,
+                )
 
             else:
                 schemas = self._collection.find({}).sort([("version", pymongo.DESCENDING)])
@@ -172,7 +179,7 @@ class MigrationRepositoryImpl(repository_port.MigrationRepository):
         with self._lock:
             self._collection.delete_one(
                 {"_id": migration_version},
-                hint=Index.UNIQUE,
+                hint=Index.UNIQUE.translate(),
                 comment="Delete migration record from the collection.",
             )
 
@@ -184,8 +191,11 @@ class MigrationRepositoryImpl(repository_port.MigrationRepository):
                 {"_id": migration.version},
                 {"$set": {"is_applied": is_applied}},
                 bypass_document_validation=True,
-                comment=f"Change the flag of the current migration "
-                f"that has version {migration.version}.",
+                comment=(
+                    f"Change the flag of the current migration"
+                    f" "
+                    f"that has version {migration.version}."
+                ),
             )
 
         return migration.version

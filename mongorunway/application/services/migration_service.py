@@ -46,9 +46,7 @@ class MigrationService:
         self._session = app_session
 
     def get_migration(self, migration_name: str) -> domain_migration.Migration:
-        module = util.get_module(
-            self._session.session_config.filesystem.scripts_dir, migration_name
-        )
+        module = util.get_module(self._session.session_scripts_dir, migration_name)
         migration_module = domain_module.MigrationModule(module)
 
         model = self._session.get_migration_model_by_version(module.version)
@@ -67,10 +65,10 @@ class MigrationService:
 
     @typing.no_type_check
     def get_migrations(self) -> typing.Sequence[domain_migration.Migration]:
-        directory = self._session.session_config.filesystem.scripts_dir
-        filename_strategy = self._session.session_config.filesystem.filename_strategy
+        filename_strategy = self._session.session_file_naming_strategy
+        directory = self._session.session_scripts_dir
 
-        if self._session.session_config.filesystem.strict_naming:
+        if self._session.uses_strict_file_naming:
             # All migrations are in the correct order by name.
             return [
                 self.get_migration(
@@ -126,8 +124,8 @@ class MigrationService:
                 f"must be {current_version + 1!r}, but {migration_version!r} received."
             )
 
-        filename_strategy = self._session.session_config.filesystem.filename_strategy
-        if self._session.session_config.filesystem.strict_naming:
+        filename_strategy = self._session.session_file_naming_strategy
+        if self._session.uses_strict_file_naming:
             migration_filename = filename_strategy.transform_migration_filename(
                 migration_filename,
                 migration_version,
@@ -138,7 +136,7 @@ class MigrationService:
 
         with open(
             os.path.join(
-                self._session.session_config.filesystem.scripts_dir,
+                self._session.session_scripts_dir,
                 migration_filename,
             ),
             "w",

@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "read_repository",
+    "read_events",
+    "read_event_handlers",
+    "read_auditlog_journal",
+    "read_filename_strategy",
+    "BaseConfigReader",
+    "YamlConfigReader",
+)
+
 import abc
 import re
 import typing
@@ -10,11 +20,11 @@ from mongorunway import mongo
 from mongorunway import util
 from mongorunway.application import config
 from mongorunway.application import filesystem
+from mongorunway.application.ports import auditlog_journal as auditlog_journal_port
 from mongorunway.application.ports import config_reader as config_reader_port
 from mongorunway.application.ports import filename_strategy as filename_strategy_port
-from mongorunway.domain import migration_event as domain_event
 from mongorunway.application.ports import repository as repository_port
-from mongorunway.application.ports import auditlog_journal as auditlog_journal_port
+from mongorunway.domain import migration_event as domain_event
 
 event_handler_pattern: typing.Pattern[str] = re.compile(
     r"""
@@ -51,9 +61,7 @@ def read_event_handlers(
             try:
                 handler = util.import_obj(handler_func_path, cast=domain_event.EventHandler)
             except AttributeError as exc:
-                raise AttributeError(
-                    f"Undefined event handler: {handler_func_path!r}."
-                ) from exc
+                raise AttributeError(f"Undefined event handler: {handler_func_path!r}.") from exc
 
             if priority is not None:
                 handler = domain_event.EventHandlerProxy(priority=priority, handler=handler)
@@ -69,13 +77,19 @@ def read_events(
     event_dict: typing.Dict[str, typing.Sequence[str]],
 ) -> typing.Mapping[
     typing.Type[domain_event.MigrationEvent],
-    typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]
+    typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]],
 ]:
-    return {
-        util.import_obj(event_name, cast=domain_event.MigrationEvent):
-        read_event_handlers(handler_name_seq)
-        for event_name, handler_name_seq in event_dict.items()
-    }
+    try:
+        mapping = {
+            util.import_obj(event_name, cast=domain_event.MigrationEvent): read_event_handlers(
+                handler_name_seq
+            )
+            for event_name, handler_name_seq in event_dict.items()
+        }
+    except AttributeError as exc:
+        raise AttributeError(f"Undefined event or event handler.") from exc
+
+    return mapping
 
 
 def read_filename_strategy(strategy_path: str) -> filename_strategy_port.FilenameStrategy:
@@ -85,9 +99,7 @@ def read_filename_strategy(strategy_path: str) -> filename_strategy_port.Filenam
             cast=filename_strategy_port.FilenameStrategy,
         )
     except AttributeError as exc:
-        raise AttributeError(
-            f"Undefined filename strategy {strategy_path!r}."
-        ) from exc
+        raise AttributeError(f"Undefined filename strategy {strategy_path!r}.") from exc
 
     return strategy_type()
 
@@ -96,7 +108,7 @@ def read_repository(
     application_data: typing.Dict[str, typing.Any],
 ) -> repository_port.MigrationRepository:
     try:
-        if (repository_value := application_data.get("app_repository")) is None:
+        if (repository_data := application_data.get("app_repository")) is None:
             initializer = util.import_obj(
                 "mongorunway.infrastructure.initializers.default_repository_initializer",
                 cast=typing.Callable[
@@ -106,7 +118,7 @@ def read_repository(
             )
             return initializer(application_data)
 
-        if (initializer_value := repository_value.get("initializer")) is not None:
+        if (initializer_value := repository_data.get("initializer")) is not None:
             initializer = util.import_obj(
                 initializer_value,
                 cast=typing.Callable[
@@ -117,14 +129,12 @@ def read_repository(
             return initializer(application_data)
 
         repository_type = util.import_obj(
-            repository_value["type"],
+            repository_data["type"],
             cast=repository_port.MigrationRepository,
         )
 
     except AttributeError as exc:
-        raise AttributeError(
-            f"Undefined initializer or repository received."
-        ) from exc
+        raise AttributeError(f"Undefined initializer or repository received.") from exc
 
     return repository_type()
 
@@ -134,7 +144,14 @@ def read_auditlog_journal(
 ) -> typing.Optional[auditlog_journal_port.AuditlogJournal]:
     try:
         if (auditlog_value := application_data.get("app_auditlog_journal")) is None:
-            return None
+            initializer = util.import_obj(
+                "mongorunway.infrastructure.initializers.default_auditlog_journal_initializer",
+                cast=typing.Callable[
+                    [typing.Dict[str, typing.Any]],
+                    auditlog_journal_port.AuditlogJournal,
+                ],
+            )
+            return initializer(application_data)
 
         if (initializer_value := auditlog_value.get("initializer")) is not None:
             initializer = util.import_obj(
@@ -151,9 +168,7 @@ def read_auditlog_journal(
             cast=auditlog_journal_port.AuditlogJournal,
         )
     except AttributeError as exc:
-        raise AttributeError(
-            f"Undefined initializer or repository received."
-        ) from exc
+        raise AttributeError(f"Undefined initializer or repository received.") from exc
 
     return auditlog_journal_type()
 
@@ -213,7 +228,9 @@ class YamlConfigReader(BaseConfigReader):
         )
 
     def _read_filesystem_config(
-        self, filesystem_data: typing.Dict[str, typing.Any], config_filepath: str,
+        self,
+        filesystem_data: typing.Dict[str, typing.Any],
+        config_filepath: str,
     ) -> config.FileSystemConfig:
         return config.FileSystemConfig(
             config_dir=config_filepath,
@@ -226,7 +243,8 @@ class YamlConfigReader(BaseConfigReader):
         )
 
     def _read_application_config(
-        self, application_data: typing.Dict[str, typing.Any],
+        self,
+        application_data: typing.Dict[str, typing.Any],
     ) -> config.ApplicationConfig:
         return config.ApplicationConfig(
             app_name=self.application_name,

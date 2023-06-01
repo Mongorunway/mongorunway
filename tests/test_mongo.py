@@ -21,16 +21,21 @@
 from __future__ import annotations
 
 import typing
+from unittest import mock
 
 import pymongo
-from pymongo import database
 from pymongo import client_session
+from pymongo import database
+import pytest
 
-from mongorunway.mongo import DocumentType
-from mongorunway.mongo import Database
 from mongorunway.mongo import Client
-from mongorunway.mongo import Collection
 from mongorunway.mongo import ClientSession
+from mongorunway.mongo import Collection
+from mongorunway.mongo import Cursor
+from mongorunway.mongo import Database
+from mongorunway.mongo import DocumentType
+from mongorunway.mongo import hint_or_sort_cursor
+from mongorunway.mongo import translate_index
 
 
 def test_document_type() -> None:
@@ -55,3 +60,83 @@ def test_collection() -> None:
 
 def test_client_session() -> None:
     assert ClientSession is client_session.ClientSession
+
+
+def test_cursor() -> None:
+    assert typing.get_origin(Cursor) is pymongo.cursor.Cursor
+    assert typing.get_args(Cursor)[0] == typing.Dict[str, typing.Any]
+
+
+@pytest.mark.parametrize(
+    "index, expected_result",
+    [
+        ([("x", 1), ("y", 2), ("z", 3)], "x_1_y_2_z_3"),
+        ([("a", 10), ("b", 20)], "a_10_b_20"),
+        ([], ""),
+        ([("abc", 123)], "abc_123"),
+        ("abc", "abc"),
+        (("abc", 1), "abc_1"),
+    ],
+)
+def test_translate_index(
+    index: typing.Sequence[typing.Tuple[str, int]],
+    expected_result: str,
+) -> None:
+    assert translate_index(index) == expected_result
+
+
+class TestHintOrSortCursor:
+    @pytest.fixture
+    def example_cursor(self) -> Cursor:
+        # Create an example Cursor object for testing
+        return Cursor(mock.Mock(spec=pymongo.collection.Collection))
+
+    def test_hint_or_sort_cursor_with_existing_index(self, example_cursor: Cursor) -> None:
+        # Test when the index exists in the collection
+        index_name = "example_index"
+
+        example_cursor.collection.index_information.return_value = {index_name: {}}
+        example_cursor.hint = mock.Mock()
+        example_cursor.sort = mock.Mock()
+
+        hint_or_sort_cursor(example_cursor, indexes=index_name)
+
+        example_cursor.hint.assert_called_once_with(index_name)
+        example_cursor.sort.assert_not_called()
+
+    def test_hint_or_sort_cursor_with_missing_index(self, example_cursor: Cursor) -> None:
+        # Test when the index is missing in the collection
+        missing_index = "missing_index"
+        example_cursor.collection.index_information.return_value = {}
+        example_cursor.sort = mock.Mock()
+        example_cursor.hint = mock.Mock()
+
+        hint_or_sort_cursor(example_cursor, indexes=missing_index)
+
+        example_cursor.sort.assert_called_once_with(missing_index)
+        example_cursor.hint.assert_not_called()
+
+    def test_hint_or_sort_cursor_with_multiple_indexes(self, example_cursor: Cursor) -> None:
+        # Test with multiple indexes, some existing and some missing
+        existing_index = ("existing_index", 1)
+        missing_index = ("missing_index", 1)
+
+        example_cursor.collection.index_information.return_value = {existing_index: {}}
+        example_cursor.sort = mock.Mock()
+        example_cursor.hint = mock.Mock()
+
+        hint_or_sort_cursor(example_cursor, indexes=[existing_index, missing_index])
+
+        example_cursor.sort.assert_called_once_with([existing_index, missing_index])
+        example_cursor.hint.assert_not_called()
+
+    def test_hint_or_sort_cursor_with_empty_indexes(self, example_cursor: Cursor) -> None:
+        # Test when no indexes are provided
+        example_cursor.collection.index_information.return_value = {}
+        example_cursor.hint = mock.Mock()
+        example_cursor.sort = mock.Mock()
+
+        hint_or_sort_cursor(example_cursor, indexes=[])
+
+        example_cursor.hint.assert_called_once_with([])
+        example_cursor.sort.assert_not_called()

@@ -48,7 +48,7 @@ def show_version(application: applications.MigrationApp, verbose: bool) -> None:
         presentation = f"Current applied version is {version_result}"
         if verbose:
             all_applied_migrations_len = len(application.session.get_all_migration_models())
-            presentation += (f" " + f"({version_result} of {all_applied_migrations_len})")
+            presentation += f" " + f"({version_result} of {all_applied_migrations_len})"
 
         output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
         output.print_success(presentation)
@@ -74,13 +74,10 @@ def show_status(
             presentation = f"Applying failed in depth {pushed_depth!r}"
 
         if verbose:
-            presentation += (
+            presentation += f" " + (
+                f"({application.session.get_current_version()}"
                 f" "
-                + (
-                    f"({application.session.get_current_version()}"
-                    f" "
-                    f"of {len(application.session.get_all_migration_models())})"
-                )
+                f"of {len(application.session.get_all_migration_models())})"
             )
 
             output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)

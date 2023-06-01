@@ -20,7 +20,11 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
-__all__ = ("MigrationCommand",)
+__all__: typing.Sequence[str] = (
+    "MigrationCommand",
+    "CommandSequence",
+    "AnyCommand",
+)
 
 import abc
 import typing
@@ -28,10 +32,14 @@ import typing
 if typing.TYPE_CHECKING:
     from mongorunway.domain import migration_context as domain_context
 
+_CallbackT_co = typing.TypeVar("_CallbackT_co", covariant=True)
+
 CommandSequence: typing.TypeAlias = typing.Sequence["MigrationCommand"]
 
+AnyCommand: typing.TypeAlias = "MigrationCommand[typing.Any]"
 
-class MigrationCommand(abc.ABC):
+
+class MigrationCommand(typing.Generic[_CallbackT_co], abc.ABC):
     __slots__ = ()
 
     @property
@@ -39,5 +47,5 @@ class MigrationCommand(abc.ABC):
         return self.__class__.__name__
 
     @abc.abstractmethod
-    def execute(self, ctx: domain_context.MigrationContext) -> None:
+    def execute(self, ctx: domain_context.MigrationContext) -> _CallbackT_co:
         ...

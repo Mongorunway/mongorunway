@@ -93,7 +93,11 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
             domain_auditlog_entry.MigrationAuditlogEntry.from_dict(entry)
             for entry in self._collection.aggregate(
                 pipeline,
-                comment=f"Loading all records with a limit of {'none' if limit is None else limit}.",
+                comment=(
+                    f"Loading all records with a limit of"
+                    f" "
+                    f"{'none' if limit is None else limit}.",
+                ),
             )
         ]
 

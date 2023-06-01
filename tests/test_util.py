@@ -20,81 +20,70 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
-import typing
 import types
+import typing
 
 import bson
 import pytest
 
-from mongorunway.util import convert_string
+from mongorunway.util import as_snake_case
 from mongorunway.util import build_mapping_values
 from mongorunway.util import build_optional_kwargs
+from mongorunway.util import convert_string
 from mongorunway.util import get_module
-from mongorunway.util import is_valid_filename
-from mongorunway.util import import_obj
 from mongorunway.util import hexlify
+from mongorunway.util import import_obj
+from mongorunway.util import is_valid_filename
 
 
 class FakeUtilClass:
     pass
 
 
-@pytest.mark.parametrize("value, expected", [
-    ("True", True),
-    ("true", True),
-    ("yes", True),
-    ("ok", True),
-    ("False", False),
-    ("false", False),
-    ("no", False),
-    ("None", None),
-    ("none", None),
-    ("nothing", None),
-    ("undefined", None),
-    ("42", 42),
-    ("0", 0),
-    ("-10", -10),
-    ("hello", "hello"),
-    ("   true   ", True),
-    ("   FALSE   ", False),
-    ("  none  ", None),
-    ("  42  ", 42),
-    ("  hello  ", "hello")
-])
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("True", True),
+        ("true", True),
+        ("yes", True),
+        ("on", True),
+        ("False", False),
+        ("false", False),
+        ("no", False),
+        ("None", None),
+        ("none", None),
+        ("nothing", None),
+        ("undefined", None),
+        ("42", 42),
+        ("0", 0),
+        ("22.22", 22.22),
+        ("-10", -10),
+        ("20_23", 2023),
+        ("hello", "hello"),
+        ("   true   ", True),
+        ("   FALSE   ", False),
+        ("  none  ", None),
+        ("  42  ", 42),
+        ("  hello  ", "  hello  "),
+    ],
+)
 def test_try_convert_string(value: str, expected: typing.Any) -> None:
     assert convert_string(value) == expected
 
 
-@pytest.mark.parametrize("mapping, expected", [
-    (
-        {
-            "key1": "true",
-            "key2": "42",
-            "key3": "hello",
-            "key4": "none"
-        },
-        {
-            "key1": True,
-            "key2": 42,
-            "key3": "hello",
-            "key4": None
-        }
-    ),
-    (
-        {
-            "key1": "false",
-            "key2": "0",
-            "key3": "world",
-            "key4": "undefined"
-        },
-        {
-            "key1": False,
-            "key2": 0,
-            "key3": "world",
-            "key4": None
-        }
-    ),
-])
+@pytest.mark.parametrize(
+    "mapping, expected",
+    [
+        (
+            {"key1": "true", "key2": "42", "key3": "hello", "key4": "none"},
+            {"key1": True, "key2": 42, "key3": "hello", "key4": None},
+        ),
+        (
+            {"key1": "false", "key2": "0", "key3": "world", "key4": "undefined"},
+            {"key1": False, "key2": 0, "key3": "world", "key4": None},
+        ),
+    ],
+)
 def test_build_mapping_values(
     mapping: typing.MutableMapping[str, typing.Any],
     expected: typing.MutableMapping[str, typing.Any],
@@ -103,34 +92,36 @@ def test_build_mapping_values(
     assert result == expected
 
 
-@pytest.mark.parametrize("keys, expected", [
-    (["key1"], {"key1": True}),
-    (["key2"], {"key2": 42}),
-    (["key3"], {"key3": "hello"}),
-    (["key4"], {"key4": None}),
-    (["key1", "key2"], {"key1": True, "key2": 42}),
-    (["key2", "key3"], {"key2": 42, "key3": "hello"}),
-    (["key1", "key3", "key4"], {"key1": True, "key3": "hello", "key4": None}),
-    ([], {}),
-    (["nonexistent"], {}),
-])
+@pytest.mark.parametrize(
+    "keys, expected",
+    [
+        (["key1"], {"key1": True}),
+        (["key2"], {"key2": 42}),
+        (["key3"], {"key3": "hello"}),
+        (["key4"], {"key4": None}),
+        (["key1", "key2"], {"key1": True, "key2": 42}),
+        (["key2", "key3"], {"key2": 42, "key3": "hello"}),
+        (["key1", "key3", "key4"], {"key1": True, "key3": "hello", "key4": None}),
+        ([], {}),
+        (["nonexistent"], {}),
+    ],
+)
 def test_build_optional_kwargs(
-    keys: typing.Iterable[str], expected: typing.MutableMapping[str, typing.Any],
+    keys: typing.Iterable[str],
+    expected: typing.MutableMapping[str, typing.Any],
 ) -> None:
-    mapping = {
-        "key1": "true",
-        "key2": "42",
-        "key3": "hello",
-        "key4": "none"
-    }
+    mapping = {"key1": "true", "key2": "42", "key3": "hello", "key4": "none"}
     result = build_optional_kwargs(keys, mapping)
     assert result == expected
 
 
-@pytest.mark.parametrize("filename, content", [
-    ("module1.py", "def add(a, b):\n    return a + b"),
-    ("module2.py", "def multiply(a, b):\n    return a * b"),
-])
+@pytest.mark.parametrize(
+    "filename, content",
+    [
+        ("module1.py", "def add(a, b):\n    return a + b"),
+        ("module2.py", "def multiply(a, b):\n    return a * b"),
+    ],
+)
 def test_get_module(filename, content, tmp_path):
     with open(str(tmp_path / filename), "w") as f:
         f.write(content)
@@ -141,11 +132,14 @@ def test_get_module(filename, content, tmp_path):
     assert hasattr(module, "add") or hasattr(module, "multiply")
 
 
-@pytest.mark.parametrize("filename, expected", [
-    ("migration.py", True),
-    ("migration.sql", False),
-    ("__init__.py", False),
-])
+@pytest.mark.parametrize(
+    "filename, expected",
+    [
+        ("migration.py", True),
+        ("migration.sql", False),
+        ("__init__.py", False),
+    ],
+)
 def test_is_valid_migration_filename(filename, expected, tmp_path):
     with open(str(tmp_path / filename), "w"):
         assert is_valid_filename(str(tmp_path), filename) == expected
@@ -157,7 +151,7 @@ def test_is_valid_migration_filename(filename, expected, tmp_path):
         (bson.binary.Binary(b"abc"), "616263"),
         (bson.binary.Binary(b"\x00\x01\x02"), "000102"),
         (bson.binary.Binary(b""), ""),
-    ]
+    ],
 )
 def test_hexlify(binary: bson.binary.Binary, expected_hex: str) -> None:
     assert hexlify(binary) == expected_hex
@@ -168,7 +162,7 @@ def test_hexlify(binary: bson.binary.Binary, expected_hex: str) -> None:
     [
         ("tests.test_util.FakeUtilClass", FakeUtilClass, FakeUtilClass),
         ("typing.Type", typing.Type[typing.Any], typing.Type),
-    ]
+    ],
 )
 def test_import_obj(
     class_path: str,
@@ -176,4 +170,18 @@ def test_import_obj(
     expected_obj: typing.Any,
 ) -> None:
     imported_obj = import_obj(class_path, cast)
-    assert imported_obj == expected_obj
+    assert imported_obj is expected_obj
+
+
+@pytest.mark.parametrize(
+    "obj, expected_result",
+    [
+        (FakeUtilClass, "fake_util_class"),
+        (FakeUtilClass(), "fake_util_class"),
+        ("snake_case", "snake_case"),
+        ("camelCase", "camel_case"),
+        ("TitledString", "titled_string"),
+    ],
+)
+def test_get_snake_case_command_name(obj: typing.Any, expected_result: str) -> None:
+    assert as_snake_case(obj) == expected_result
