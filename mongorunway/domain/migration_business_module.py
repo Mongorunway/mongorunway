@@ -20,7 +20,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
-__all__: typing.Sequence[str] = ("MigrationModule",)
+__all__: typing.Sequence[str] = ("MigrationBusinessModule",)
 
 import types
 import typing
@@ -28,7 +28,7 @@ import typing
 from mongorunway.domain import migration as domain_migration
 
 
-class MigrationModule:
+class MigrationBusinessModule:
     __slots__: typing.Sequence[str] = (
         "_module",
         "_upgrade_process",

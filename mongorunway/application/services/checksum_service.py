@@ -26,10 +26,10 @@ import hashlib
 import typing
 
 if typing.TYPE_CHECKING:
-    from mongorunway.domain import migration_module as domain_module
+    from mongorunway.domain import migration_business_module as domain_module
 
 
-def calculate_migration_checksum(module: domain_module.MigrationModule, /) -> str:
+def calculate_migration_checksum(module: domain_module.MigrationBusinessModule, /) -> str:
     with open(module.location, "r") as f:
         file_data = f.read().encode()
         return hashlib.md5(file_data).hexdigest()

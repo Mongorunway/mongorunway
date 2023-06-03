@@ -83,14 +83,14 @@ class MigrationTransaction(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def apply_to(self, session_context) -> None:
+    def apply_to(self, session_context: session.MongoSessionContext) -> None:
         ...
 
     @abc.abstractmethod
     def commit(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         ...
 
@@ -98,7 +98,7 @@ class MigrationTransaction(abc.ABC):
     def rollback(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         ...
 
@@ -130,9 +130,10 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
         return self.exc_val is not None
 
     @typing.final
-    def apply_to(self, session_context) -> None:
+    def apply_to(self, session_context: session.MongoSessionContext) -> None:
         process = self.get_process(self._migration)
-        validation_service.validate_migration_process(process, self._client)
+        context = self._build_command_context(session_context)
+        validation_service.validate_migration_process(process, context)
 
         mongodb_session_id = util.hexlify(session_context.mongodb_session_id)
         try:
@@ -145,7 +146,7 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
                 )
 
                 for command_idx, command in enumerate(process.commands, 1):
-                    command.execute(self._build_command_context(session_context))
+                    command.execute(context)
 
                     _LOGGER.info(
                         "%s command successfully applied (%s of %s).",
@@ -174,7 +175,7 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
     def rollback(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         _LOGGER.debug(
             "Rolling back migration %s with version %s",
@@ -187,7 +188,7 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
     def commit(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         _LOGGER.debug(
             "Committing migration %s with version %s",
@@ -200,7 +201,7 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
     def _rollback(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         pass
 
@@ -208,11 +209,14 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
     def _commit(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         pass
 
-    def _build_command_context(self, session_context) -> domain_context.MigrationContext:
+    def _build_command_context(
+        self,
+        session_context: session.MongoSessionContext,
+    ) -> domain_context.MigrationContext:
         return domain_context.MigrationContext(
             mongorunway_session_id=util.hexlify(self._migration_session.session_id),
             mongodb_session_id=util.hexlify(session_context.mongodb_session_id),
@@ -230,7 +234,7 @@ class UpgradeTransaction(AbstractMigrationTransaction):
     def _rollback(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         mongo_session.abort_transaction()
         self._migration_session.set_applied_flag(migration, False)
@@ -238,7 +242,7 @@ class UpgradeTransaction(AbstractMigrationTransaction):
     def _commit(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         mongo_session.commit_transaction()
         self._migration_session.set_applied_flag(migration, True)
@@ -253,7 +257,7 @@ class DowngradeTransaction(AbstractMigrationTransaction):
     def _rollback(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         mongo_session.abort_transaction()
         self._migration_session.set_applied_flag(migration, True)
@@ -261,7 +265,7 @@ class DowngradeTransaction(AbstractMigrationTransaction):
     def _commit(
         self,
         migration: domain_migration.Migration,
-        mongo_session: mongo.ClientSession,
+        mongo_session: session.MongoSessionContext,
     ) -> None:
         mongo_session.commit_transaction()
         self._migration_session.set_applied_flag(migration, False)

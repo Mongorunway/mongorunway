@@ -71,8 +71,8 @@ def requires_migrations(
             if not models:
                 if self.session.raises_on_transaction_failure:
                     if is_applied:
-                        raise domain_exception.NothingToUpgradeError()
-                    raise domain_exception.NothingToDowngradeError()
+                        raise domain_exception.NothingToDowngradeError()
+                    raise domain_exception.NothingToUpgradeError()
 
                 return typing.cast(
                     _TransactionCodeT,
@@ -181,7 +181,6 @@ class MigrationAppImpl(MigrationApp):
         ux.init_components(configuration)
 
         self._session = app_session = session.MigrationSessionImpl(self, configuration)
-
         self._migration_service = migration_service.MigrationService(app_session)
 
         self._event_manager = event_manager.MigrationEventManagerImpl()
@@ -265,7 +264,10 @@ class MigrationAppImpl(MigrationApp):
         pending_migration_model = self._session.get_migration_model_by_flag(is_applied=False)
         assert pending_migration_model is not None  # Only for type checkers
 
-        pending_migration = self._migration_service.get_migration(pending_migration_model.name)
+        pending_migration = self._migration_service.get_migration(
+            pending_migration_model.name,
+            pending_migration_model.version,
+        )
 
         with self._session.begin_mongo_session() as session_context:
             _LOGGER.info(
@@ -293,7 +295,10 @@ class MigrationAppImpl(MigrationApp):
         applied_migration_model = self._session.get_migration_model_by_flag(is_applied=True)
         assert applied_migration_model is not None  # Only for type checkers
 
-        applied_migration = self._migration_service.get_migration(applied_migration_model.name)
+        applied_migration = self._migration_service.get_migration(
+            applied_migration_model.name,
+            applied_migration_model.version,
+        )
 
         with self._session.begin_mongo_session() as session_context:
             _LOGGER.info(
@@ -326,7 +331,8 @@ class MigrationAppImpl(MigrationApp):
         with self._session.begin_mongo_session() as session_context:
             while pending_migration_models:
                 migration = self._migration_service.get_migration(
-                    pending_migration_models.pop(0).name
+                    (model := pending_migration_models.pop(0)).name,
+                    model.version,
                 )
 
                 if not predicate(migration):
@@ -364,7 +370,8 @@ class MigrationAppImpl(MigrationApp):
         with self._session.begin_mongo_session() as session_context:
             while applied_migration_models:
                 migration = self._migration_service.get_migration(
-                    applied_migration_models.pop(0).name
+                    (model := applied_migration_models.pop(0)).name,
+                    model.version,
                 )
 
                 if not predicate(migration):

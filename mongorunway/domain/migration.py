@@ -33,6 +33,8 @@ if typing.TYPE_CHECKING:
     from mongorunway.domain import migration_business_rule as domain_rule
     from mongorunway.domain import migration_command as domain_command
 
+_ProcessT = typing.TypeVar("_ProcessT", bound="MigrationProcess")
+
 
 class Migration:
     __slots__: typing.Sequence[str] = (
@@ -137,7 +139,7 @@ class MigrationReadModel:
 class MigrationProcess:
     def __init__(
         self,
-        commands: domain_command.CommandSequence,
+        commands: domain_command.AnyCommandSequence,
         migration_version: int,
         name: str,
     ) -> None:
@@ -151,7 +153,7 @@ class MigrationProcess:
         return self._name
 
     @property
-    def commands(self) -> domain_command.CommandSequence:
+    def commands(self) -> domain_command.AnyCommandSequence:
         return self._commands
 
     @property
@@ -165,6 +167,6 @@ class MigrationProcess:
     def has_rules(self) -> bool:
         return bool(self._rules)
 
-    def add_rule(self, rule: domain_rule.MigrationBusinessRule, /):
+    def add_rule(self: _ProcessT, rule: domain_rule.MigrationBusinessRule, /) -> _ProcessT:
         self._rules.append(rule)
         return self

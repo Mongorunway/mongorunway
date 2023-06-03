@@ -20,7 +20,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
-__all__: typing.Sequence[str] = ("MigrationRepository",)
+__all__: typing.Sequence[str] = ("MigrationModelRepository",)
 
 import abc
 import typing
@@ -29,7 +29,7 @@ if typing.TYPE_CHECKING:
     from mongorunway.domain import migration as domain_migration
 
 
-class MigrationRepository(abc.ABC):
+class MigrationModelRepository(abc.ABC):
     __slots__: typing.Sequence[str] = ()
 
     @abc.abstractmethod
@@ -70,7 +70,7 @@ class MigrationRepository(abc.ABC):
         self,
         *,
         ascending_id: bool = True,
-    ) -> typing.MutableSequence[domain_migration.MigrationReadModel]:
+    ) -> typing.Iterator[domain_migration.MigrationReadModel]:
         ...
 
     @abc.abstractmethod

@@ -22,7 +22,7 @@ from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
     "MigrationCommand",
-    "CommandSequence",
+    "AnyCommandSequence",
     "AnyCommand",
 )
 
@@ -34,9 +34,10 @@ if typing.TYPE_CHECKING:
 
 _CallbackT_co = typing.TypeVar("_CallbackT_co", covariant=True)
 
-CommandSequence: typing.TypeAlias = typing.Sequence["MigrationCommand"]
 
 AnyCommand: typing.TypeAlias = "MigrationCommand[typing.Any]"
+
+AnyCommandSequence: typing.TypeAlias = typing.Sequence[AnyCommand]
 
 
 class MigrationCommand(typing.Generic[_CallbackT_co], abc.ABC):

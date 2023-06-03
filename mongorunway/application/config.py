@@ -1,3 +1,23 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import typing
@@ -26,12 +46,12 @@ class FileSystemConfig:
 class ApplicationConfig:
     app_client: mongo.Client = attr.field(repr=False)
     app_database: mongo.Database = attr.field(repr=False)
-    app_repository: repository_port.MigrationRepository = attr.field(repr=False)
+    app_repository: repository_port.MigrationModelRepository = attr.field(repr=False)
     app_auditlog_journal: typing.Optional[auditlog_journal_port.AuditlogJournal] = attr.field(
         repr=False,
     )
     app_name: str = attr.field(
-        validator=[attr.validators.min_len(1), attr.validators.instance_of(str)],
+        validator=[attr.validators.min_len(1), attr.validators.instance_of(str)],  # type: ignore[arg-type]
         repr=True,
         eq=True,
     )

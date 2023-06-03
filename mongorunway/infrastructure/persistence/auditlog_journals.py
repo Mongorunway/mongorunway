@@ -58,7 +58,6 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
         self,
         entries: typing.Sequence[domain_auditlog_entry.MigrationAuditlogEntry],
     ) -> None:
-
         total = self._collection.count_documents(
             {},
             comment="Get the total count of documents to check the limit.",
@@ -110,6 +109,7 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
         limit: typing.Optional[int] = None,
         ascending_date: bool = True,
     ) -> typing.Iterator[domain_auditlog_entry.MigrationAuditlogEntry]:
+        print(start, end)
         pipeline: typing.List[typing.Any] = [
             {"$sort": {"date": pymongo.ASCENDING if ascending_date else pymongo.DESCENDING}}
         ]
@@ -123,7 +123,7 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
         schemas = self._collection.aggregate(pipeline)
 
         for schema in schemas:
-            schema["migration"] = domain_migration.MigrationReadModel.from_dict(
-                schema["migration"],
+            schema["migration_read_model"] = domain_migration.MigrationReadModel.from_dict(
+                schema["migration_read_model"],
             )
             yield domain_auditlog_entry.MigrationAuditlogEntry.from_dict(schema)

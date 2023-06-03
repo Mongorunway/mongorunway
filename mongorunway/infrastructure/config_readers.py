@@ -1,6 +1,28 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
+    "default_repository_reader",
+    "default_auditlog_journal_reader",
     "read_repository",
     "read_events",
     "read_event_handlers",
@@ -14,7 +36,7 @@ import abc
 import re
 import typing
 
-import yaml
+import yaml  # type: ignore[import]
 
 from mongorunway import mongo
 from mongorunway import util
@@ -25,6 +47,8 @@ from mongorunway.application.ports import config_reader as config_reader_port
 from mongorunway.application.ports import filename_strategy as filename_strategy_port
 from mongorunway.application.ports import repository as repository_port
 from mongorunway.domain import migration_event as domain_event
+from mongorunway.infrastructure.persistence import auditlog_journals
+from mongorunway.infrastructure.persistence import repositories
 
 event_handler_pattern: typing.Pattern[str] = re.compile(
     r"""
@@ -42,7 +66,48 @@ event_handler_pattern: typing.Pattern[str] = re.compile(
     flags=re.VERBOSE,
 )
 
+logging_config: typing.Dict[str, typing.Any] = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "simpleFormatter": {
+            "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        }
+    },
+    "handlers": {
+        "consoleHandler": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "simpleFormatter",
+        }
+    },
+    "loggers": {"root": {"level": "INFO", "handlers": ["consoleHandler"], "propagate": 0}},
+}
 
+
+def default_repository_reader(
+    application_data: typing.Dict[str, typing.Any],
+) -> repository_port.MigrationModelRepository:
+    client = mongo.Client(**util.build_mapping_values(application_data["app_client"]))
+    database = client.get_database(application_data["app_database"])
+    collection = database.get_collection(application_data["app_repository"]["collection"])
+    return repositories.MongoModelRepositoryImpl(collection)
+
+
+def default_auditlog_journal_reader(
+    application_data: typing.Dict[str, typing.Any],
+) -> typing.Optional[auditlog_journal_port.AuditlogJournal]:
+    if (collection := application_data["app_auditlog_journal"].get("collection")) is None:
+        return None
+
+    client = mongo.Client(**util.build_mapping_values(application_data["app_client"]))
+    database = client.get_database(application_data["app_database"])
+    collection = database.get_collection(collection)
+    return auditlog_journals.AuditlogJournalImpl(collection)
+
+
+@typing.no_type_check
 def read_event_handlers(
     handler_name_seq: typing.Sequence[str],
 ) -> typing.List[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]:
@@ -59,6 +124,7 @@ def read_event_handlers(
                 handler_func_path = match.group(3)
 
             try:
+                print(654654, handler_func_path)
                 handler = util.import_obj(handler_func_path, cast=domain_event.EventHandler)
             except AttributeError as exc:
                 raise AttributeError(f"Undefined event handler: {handler_func_path!r}.") from exc
@@ -73,6 +139,7 @@ def read_event_handlers(
     return handlers
 
 
+@typing.no_type_check
 def read_events(
     event_dict: typing.Dict[str, typing.Sequence[str]],
 ) -> typing.Mapping[
@@ -92,6 +159,7 @@ def read_events(
     return mapping
 
 
+@typing.no_type_check
 def read_filename_strategy(strategy_path: str) -> filename_strategy_port.FilenameStrategy:
     try:
         strategy_type = util.import_obj(
@@ -104,71 +172,79 @@ def read_filename_strategy(strategy_path: str) -> filename_strategy_port.Filenam
     return strategy_type()
 
 
+@typing.no_type_check
 def read_repository(
     application_data: typing.Dict[str, typing.Any],
-) -> repository_port.MigrationRepository:
+) -> repository_port.MigrationModelRepository:
     try:
         if (repository_data := application_data.get("app_repository")) is None:
-            initializer = util.import_obj(
-                "mongorunway.infrastructure.initializers.default_repository_initializer",
-                cast=typing.Callable[
-                    [typing.Dict[str, typing.Any]],
-                    repository_port.MigrationRepository,
-                ],
-            )
-            return initializer(application_data)
+            raise KeyError("Missing 'app_repository' section.")
 
-        if (initializer_value := repository_data.get("initializer")) is not None:
-            initializer = util.import_obj(
-                initializer_value,
+        if (reader_value := repository_data.get("reader")) is not None:
+            reader = util.import_obj(
+                reader_value,
                 cast=typing.Callable[
                     [typing.Dict[str, typing.Any]],
-                    repository_port.MigrationRepository,
+                    repository_port.MigrationModelRepository,
                 ],
             )
-            return initializer(application_data)
+            return reader(application_data)
+
+        if (repo_type := application_data.get("type")) is None:
+            reader = util.import_obj(
+                "mongorunway.infrastructure.config_readers.default_repository_reader",
+                cast=typing.Callable[
+                    [typing.Dict[str, typing.Any]],
+                    repository_port.MigrationModelRepository,
+                ],
+            )
+            return reader(application_data)
 
         repository_type = util.import_obj(
-            repository_data["type"],
-            cast=repository_port.MigrationRepository,
+            repo_type,
+            cast=repository_port.MigrationModelRepository,
         )
 
     except AttributeError as exc:
-        raise AttributeError(f"Undefined initializer or repository received.") from exc
+        raise AttributeError(f"Undefined reader or repository received.") from exc
 
     return repository_type()
 
 
+@typing.no_type_check
 def read_auditlog_journal(
     application_data: typing.Dict[str, typing.Any],
 ) -> typing.Optional[auditlog_journal_port.AuditlogJournal]:
     try:
         if (auditlog_value := application_data.get("app_auditlog_journal")) is None:
-            initializer = util.import_obj(
-                "mongorunway.infrastructure.initializers.default_auditlog_journal_initializer",
-                cast=typing.Callable[
-                    [typing.Dict[str, typing.Any]],
-                    auditlog_journal_port.AuditlogJournal,
-                ],
-            )
-            return initializer(application_data)
+            return None
 
-        if (initializer_value := auditlog_value.get("initializer")) is not None:
-            initializer = util.import_obj(
-                initializer_value,
+        if (reader_value := auditlog_value.get("reader")) is not None:
+            reader = util.import_obj(
+                reader_value,
                 cast=typing.Callable[
                     [typing.Dict[str, typing.Any]],
                     auditlog_journal_port.AuditlogJournal,
                 ],
             )
-            return initializer(application_data)
+            return reader(application_data)
+
+        if (audit_type := application_data.get("type")) is None:
+            reader = util.import_obj(
+                "mongorunway.infrastructure.config_readers.default_auditlog_journal_reader",
+                cast=typing.Callable[
+                    [typing.Dict[str, typing.Any]],
+                    auditlog_journal_port.AuditlogJournal,
+                ],
+            )
+            return reader(application_data)
 
         auditlog_journal_type = util.import_obj(
-            auditlog_value["type"],
+            audit_type,
             cast=auditlog_journal_port.AuditlogJournal,
         )
     except AttributeError as exc:
-        raise AttributeError(f"Undefined initializer or repository received.") from exc
+        raise AttributeError(f"Undefined reader or repository received.") from exc
 
     return auditlog_journal_type()
 
@@ -224,7 +300,7 @@ class YamlConfigReader(BaseConfigReader):
             application=self._read_application_config(
                 configration_data["applications"][self.application_name],
             ),
-            logging_dict=configration_data["logging"],
+            logging_dict=configration_data.get("logging", logging_config),
         )
 
     def _read_filesystem_config(
@@ -235,7 +311,12 @@ class YamlConfigReader(BaseConfigReader):
         return config.FileSystemConfig(
             config_dir=config_filepath,
             scripts_dir=filesystem_data["scripts_dir"],
-            filename_strategy=read_filename_strategy(filesystem_data["filename_strategy"]),
+            filename_strategy=read_filename_strategy(
+                filesystem_data.get(
+                    "filename_strategy",
+                    "mongorunway.infrastructure.filename_strategies.NumericalFilenameStrategy",
+                ),
+            ),
             **util.build_optional_kwargs(
                 ("strict_naming",),
                 filesystem_data,
@@ -249,14 +330,12 @@ class YamlConfigReader(BaseConfigReader):
         return config.ApplicationConfig(
             app_name=self.application_name,
             app_client=(
-                client := mongo.Client(
-                    **util.build_mapping_values(application_data["app_client"]["init"])
-                )
+                client := mongo.Client(**util.build_mapping_values(application_data["app_client"]))
             ),
             app_database=client.get_database(application_data["app_database"]),
             app_repository=read_repository(application_data),
             app_auditlog_journal=read_auditlog_journal(application_data),
-            app_subscribed_events=read_events(application_data["app_subscribed_events"]),
+            app_subscribed_events=read_events(application_data.get("app_subscribed_events", {})),
             **util.build_optional_kwargs(
                 (
                     "app_timezone",

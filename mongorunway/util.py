@@ -56,6 +56,7 @@ import bson
 
 _P = typing.ParamSpec("_P")
 _T = typing.TypeVar("_T")
+_TT = typing.TypeVar("_TT", bound=typing.Type[typing.Any])
 
 string_case_pattern: typing.Final[typing.Pattern[str]] = re.compile(
     r"""
@@ -136,7 +137,7 @@ def convert_string(value: str, /) -> typing.Union[int, float, bool, str, None]:
     distutils.util.strtobool : Relationship.
     """
     if not isinstance(value, str):
-        return value
+        return value  # type: ignore[unreachable]
 
     value_lower = value.lower().strip()
     if value_lower in {"none", "nothing", "undefined"}:
@@ -222,7 +223,7 @@ def build_mapping_values(
 
 def build_optional_kwargs(
     keys: typing.Iterable[_T],
-    mapping: typing.MutableMapping[typing.Hashable, typing.Any],
+    mapping: typing.MutableMapping[typing.Any, typing.Any],
 ) -> typing.MutableMapping[_T, typing.Any]:
     r"""Converts string values in a mutable mapping.
 
@@ -235,7 +236,7 @@ def build_optional_kwargs(
     ----------
     keys : typing.Iterable[_T]
         Keys of optional values to be converted if their value is not None.
-    mapping : typing.MutableMapping[typing.Hashable, typing.Any]
+    mapping : typing.MutableMapping[typing.Any, typing.Any]
         Mutable mapping whose values need to be converted.
 
     Returns
@@ -316,7 +317,7 @@ def get_module(directory: str, filename: str) -> types.ModuleType:
     return module
 
 
-def import_obj(obj_path: str, /, cast: _T) -> _T:
+def import_obj(obj_path: str, /, cast: _TT) -> _TT:
     r"""Imports a class from the specified module.
 
     Imports a class from the specified module. The module path should
@@ -326,14 +327,14 @@ def import_obj(obj_path: str, /, cast: _T) -> _T:
     ----------
     obj_path : str
         The path to the obj to be imported.
-    cast : _T
+    cast : _TT
         The type to which the value should be cast. This is used to
         provide more clarity in the code. This parameter is also useful
         for compatibility with type checkers.
 
     Returns
     -------
-    _T
+    _TT
         The type to which we cast the imported obj.
 
     See Also

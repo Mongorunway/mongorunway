@@ -20,7 +20,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
-__all__: typing.Sequence[str] = (
+__all__: typing.Tuple[str, ...] = (
     "make_snake_case_global_alias",
     "CreateDatabase",
     "DropDatabase",
@@ -41,6 +41,7 @@ __all__: typing.Sequence[str] = (
     "SendCommand",
 )
 
+import collections.abc
 import functools
 import inspect
 import typing
@@ -56,7 +57,7 @@ if typing.TYPE_CHECKING:
     from mongorunway.domain import migration_context as domain_context
 
 _T = typing.TypeVar("_T")
-_CommandTT = typing.TypeVar("_CommandTT", bound=typing.Type[domain_command.MigrationCommand])
+_CommandTT = typing.TypeVar("_CommandTT", bound=typing.Type[domain_command.AnyCommand])
 
 
 @typing.overload
@@ -93,14 +94,16 @@ def make_snake_case_global_alias(
         if called_without_args:
             globals().update({func.__name__: func})
         else:
+            assert isinstance(obj, collections.abc.MutableMapping)  # For type checkers only
+
             obj.update({func.__name__: func})
 
         return cls
 
     if inspect.isclass(obj):
-        return typing.cast(
-            _CommandTT,
-            decorator(obj, called_without_args=True),
+        return decorator(
+            typing.cast(_CommandTT, obj),
+            called_without_args=True,
         )
 
     return typing.cast(
@@ -231,12 +234,12 @@ class BulkWrite(domain_command.MigrationCommand[results.BulkWriteResult]):
         collection: str,
         bulk_operations: typing.Sequence[
             typing.Union[
-                pymongo.InsertOne,
+                pymongo.InsertOne[mongo.DocumentType],
+                pymongo.ReplaceOne[mongo.DocumentType],
                 pymongo.UpdateOne,
                 pymongo.UpdateMany,
                 pymongo.DeleteOne,
                 pymongo.DeleteMany,
-                pymongo.ReplaceOne,
             ],
         ],
         *args: typing.Any,
@@ -248,8 +251,8 @@ class BulkWrite(domain_command.MigrationCommand[results.BulkWriteResult]):
         self.kwargs = kwargs
 
     def execute(self, ctx: domain_context.MigrationContext) -> results.BulkWriteResult:
-        collection = ctx.database.get_collection(self._collection)
-        result = collection.bulk_write(self._bulk_operations, *self.args, **self.kwargs)
+        collection = ctx.database.get_collection(self.collection)
+        result = collection.bulk_write(self.bulk_operations, *self.args, **self.kwargs)
         return result
 
 
@@ -590,10 +593,8 @@ class RenameCollection(domain_command.MigrationCommand[typing.MutableMapping[str
 
 __aliases__: typing.List[str] = []
 for name in __all__:
-    try:
-        if issubclass(value := globals().get(name), domain_command.MigrationCommand):
+    if inspect.isclass(value := globals().get(name)):
+        if issubclass(value, domain_command.MigrationCommand):
             __aliases__.append(util.as_snake_case(value))
-    except TypeError:
-        continue
 
 __all__ += tuple(__aliases__)

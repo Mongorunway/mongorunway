@@ -1,3 +1,23 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import abc
@@ -22,20 +42,25 @@ if typing.TYPE_CHECKING:
     from mongorunway.application.ports import filename_strategy as filename_strategy_port
     from mongorunway.domain import migration_event as domain_event
 
+_P = typing.ParamSpec("_P")
+_T = typing.TypeVar("_T")
+
 TransactionT = typing.TypeVar("TransactionT", bound=transactions.MigrationTransaction)
 MongoSessionContextT = typing.TypeVar("MongoSessionContextT", bound="MongoSessionContext")
 
 _LOGGER: typing.Final[logging.Logger] = logging.getLogger("mongorunway.session")
 
 
-def requires_auditlog(meth):
+def requires_auditlog(meth: typing.Callable[_P, _T]) -> typing.Callable[_P, _T]:
     @functools.wraps(meth)
-    def wrapper(self, *args, **kwargs):
+    def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
+        self: "MigrationSession" = typing.cast("MigrationSession", args[0])
         if not self.uses_auditlog:
             raise ValueError("Auditlog is not enabled on this session.")
-        return meth(self, *args, **kwargs)
 
-    return wrapper
+        return meth(*args, **kwargs)
+
+    return typing.cast(typing.Callable[_P, _T], wrapper)
 
 
 class TransactionContext(typing.Generic[TransactionT]):
@@ -86,24 +111,31 @@ class MongoSessionContext:
     def __enter__(self: MongoSessionContextT) -> MongoSessionContextT:
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: typing.Any) -> None:
         self.__session.end_session()
 
     @property
     def mongodb_session_id(self) -> bson.binary.Binary:
-        return self.__session.session_id["id"]
+        return typing.cast(
+            bson.binary.Binary,
+            self.__session.session_id["id"],
+        )
 
     @property
-    def has_ended(self):
+    def has_ended(self) -> bool:
         return self.__session.has_ended
 
-    def start_transaction(self, *args, **kwargs):
+    def start_transaction(
+        self,
+        *args: typing.Any,
+        **kwargs: typing.Any,
+    ) -> contextlib.AbstractContextManager[typing.Any]:
         return self.__session.start_transaction(*args, **kwargs)
 
-    def commit_transaction(self):
+    def commit_transaction(self) -> None:
         return self.__session.commit_transaction()
 
-    def abort_transaction(self):
+    def abort_transaction(self) -> None:
         return self.__session.abort_transaction()
 
 
@@ -144,7 +176,10 @@ class MigrationSession(abc.ABC):
     @abc.abstractmethod
     def session_subscribed_events(
         self,
-    ) -> typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]]:
+    ) -> typing.Mapping[
+        typing.Type[domain_event.MigrationEvent],
+        typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]],
+    ]:
         ...
 
     @property
@@ -244,13 +279,13 @@ class MigrationSession(abc.ABC):
         self,
         *,
         ascending_id: bool = True,
-    ) -> typing.Sequence[domain_migration.MigrationReadModel]:
+    ) -> typing.MutableSequence[domain_migration.MigrationReadModel]:
         ...
 
     @abc.abstractmethod
     def get_migration_models_by_flag(
         self, *, is_applied: bool
-    ) -> typing.Sequence[domain_migration.MigrationReadModel]:
+    ) -> typing.MutableSequence[domain_migration.MigrationReadModel]:
         ...
 
     @abc.abstractmethod
@@ -276,8 +311,7 @@ class MigrationSession(abc.ABC):
         ...
 
     @abc.abstractmethod
-    @contextlib.contextmanager
-    def begin_mongo_session(self) -> typing.Iterator[mongo.ClientSession]:
+    def begin_mongo_session(self) -> MongoSessionContext:
         ...
 
     @abc.abstractmethod
@@ -410,7 +444,7 @@ class MigrationSessionImpl(MigrationSession):
         *,
         ascending_id: bool = True,
     ) -> typing.MutableSequence[domain_migration.MigrationReadModel]:
-        return self._repository.acquire_all_migration_models(ascending_id=ascending_id)
+        return list(self._repository.acquire_all_migration_models(ascending_id=ascending_id))
 
     def get_migration_models_by_flag(
         self,
@@ -423,7 +457,10 @@ class MigrationSessionImpl(MigrationSession):
         if (
             target := self._repository.acquire_migration_model_by_flag(is_applied=True)
         ) is not None:
-            return target.version
+            return typing.cast(
+                typing.Optional[int],
+                target.version,
+            )
 
         return target
 

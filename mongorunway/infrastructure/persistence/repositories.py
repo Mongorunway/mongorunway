@@ -20,7 +20,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
-__all__: typing.Sequence[str] = ("MigrationRepositoryImpl",)
+__all__: typing.Sequence[str] = ("MongoModelRepositoryImpl",)
 
 import enum
 import threading
@@ -42,7 +42,7 @@ class Index(enum.Enum):
         return mongo.translate_index(self.value)
 
 
-class MigrationRepositoryImpl(repository_port.MigrationRepository):
+class MongoModelRepositoryImpl(repository_port.MigrationModelRepository):
     __slots__: typing.Sequence[str] = (
         "_collection",
         "_lock",
@@ -144,7 +144,7 @@ class MigrationRepositoryImpl(repository_port.MigrationRepository):
         self,
         *,
         ascending_id: bool = True,
-    ) -> typing.MutableSequence[domain_migration.MigrationReadModel]:
+    ) -> typing.Iterator[domain_migration.MigrationReadModel]:
         with self._lock:
             if ascending_id:
                 # By default, the collection has already created an index for the
@@ -157,11 +157,13 @@ class MigrationRepositoryImpl(repository_port.MigrationRepository):
             else:
                 schemas = self._collection.find({}).sort([("version", pymongo.DESCENDING)])
 
-        return typing.cast(
-            # 'acquire_migration_model_by_version' cannot return None in this case.
-            typing.MutableSequence[domain_migration.MigrationReadModel],
-            [self.acquire_migration_model_by_version(schema["version"]) for schema in schemas],
-        )
+        while True:
+            try:
+                schema = schemas.next()
+            except StopIteration:
+                break
+
+            yield domain_migration.MigrationReadModel.from_dict(schema)
 
     def append_migration(self, migration: domain_migration.Migration, /) -> int:
         schema = migration.to_dict(unique=True)

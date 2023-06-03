@@ -27,4 +27,5 @@ from mongorunway.api import *
 from mongorunway.domain.migration import *
 from mongorunway.domain.migration_business_rule import *
 from mongorunway.domain.migration_command import *
+from mongorunway.domain.migration_context import *
 from mongorunway.infrastructure.commands import *

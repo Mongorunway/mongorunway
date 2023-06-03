@@ -48,7 +48,7 @@ def configuration(mongodb: mongo.Database, tmp_path: pathlib.Path) -> config.Con
             app_client=mongodb.client,
             app_database=mongodb,
             app_name=APP_NAME,
-            app_repository=repositories.MigrationRepositoryImpl(mongodb.test_migrations),
+            app_repository=repositories.MongoModelRepositoryImpl(mongodb.test_migrations),
             app_auditlog_journal=None,
         ),
         filesystem=config.FileSystemConfig(

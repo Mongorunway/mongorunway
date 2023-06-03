@@ -1,3 +1,23 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
@@ -90,7 +110,10 @@ def usecase(
             except BaseException as exc:
                 render_error(
                     exc,
-                    verbose=kwargs["verbose_exc"] if has_verbose_exc else False,
+                    verbose=typing.cast(
+                        bool,
+                        kwargs["verbose_exc"] if has_verbose_exc else False,
+                    ),
                 )
                 return FAILURE
 
@@ -113,7 +136,10 @@ def query_usecase(
             except BaseException as exc:
                 render_error(
                     exc,
-                    verbose=kwargs["verbose_exc"] if has_verbose_exc else False,
+                    verbose=typing.cast(
+                        bool,
+                        kwargs["verbose_exc"] if has_verbose_exc else False,
+                    ),
                 )
                 return UseCaseFailed
 
@@ -131,12 +157,14 @@ def downgrade(
     verbose: bool,
     verbose_exc: bool,
 ) -> ExitCode:
-    func, args = None, ()
+    func: typing.Optional[typing.Callable[..., ExitCode]] = None
+    args: typing.Tuple[typing.Any, ...] = ()
+
     if expression.isdigit():
         func, args = application.downgrade_to, (int(expression),)
     elif len(expression) > 1 and expression.startswith(MINUS):
         func, args = application.downgrade_to, (
-            int(expression) + application.session.get_current_version() or 0,
+            int(expression) + (application.session.get_current_version() or 0),
         )
     elif expression == MINUS:
         func = application.downgrade_once
@@ -161,7 +189,9 @@ def upgrade(
     verbose: bool,
     verbose_exc: bool,
 ) -> ExitCode:
-    func, args = None, ()
+    func: typing.Optional[typing.Callable[..., ExitCode]] = None
+    args: typing.Tuple[typing.Any, ...] = ()
+
     if expression.isdigit():
         func, args = application.upgrade_to, (int(expression),)
     elif expression.startswith(PLUS):
@@ -230,6 +260,28 @@ def create_migration_file(
     return SUCCESS
 
 
+@usecase(has_verbose_exc=True)
+def init(
+    application: applications.MigrationApp,
+    verbose_exc: bool,
+    init_scripts_dir: bool,
+    init_collection: bool,
+    init_collection_indexes: bool,
+    init_collection_schema_validation: bool,
+) -> ExitCode:
+    if init_scripts_dir:
+        ux.configure_migration_directory(application.session.session_scripts_dir)
+    if init_collection:
+        ux.configure_migration_collection(
+            application.session.session_database,
+            use_schema_validation=init_collection_schema_validation,
+        )
+    if init_collection_indexes:
+        ux.configure_migration_indexes(application.session.session_database.migrations)
+
+    return SUCCESS
+
+
 @query_usecase(has_verbose_exc=True)
 def get_auditlog_entries(
     application: applications.MigrationApp,
@@ -292,6 +344,10 @@ def read_configuration(
         return UseCaseFailed
 
     configuration = reader.read_config(config_filepath)
+    if configuration is None:
+        output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
+        output.print_error(f"Cannot find any configuration files in {config_filepath} directory.")
+        return UseCaseFailed
 
     return configuration
 

@@ -1,3 +1,23 @@
+# Copyright (c) 2023 Animatea
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
 import functools
@@ -29,9 +49,7 @@ def pass_application(command: typing.Callable[_P, _T]) -> typing.Callable[_P, _T
         if configuration is use_cases.UseCaseFailed:
             ctx.fail("Configuration failed.")
 
-        application = applications.MigrationAppImpl(
-            configuration,
-        )
+        application = applications.MigrationAppImpl(configuration)
         return typing.cast(_T, ctx.invoke(command, *args, application=application, **kwargs))
 
     return typing.cast(
@@ -125,6 +143,10 @@ def downgrade(
     is_flag=True,
 )
 @click.argument(
+    "application_name",
+    type=click.STRING,
+)
+@click.argument(
     "expression",
     default="",
     type=click.STRING,
@@ -163,6 +185,10 @@ def walk(
     "--verbose-exc",
     is_flag=True,
 )
+@click.argument(
+    "application_name",
+    type=click.STRING,
+)
 @pass_application
 def create_template(
     application: applications.MigrationApp,
@@ -195,6 +221,10 @@ def create_template(
     type=click.INT,
     default=-1,
     required=False,
+)
+@click.argument(
+    "application_name",
+    type=click.STRING,
 )
 @pass_application
 def status(
@@ -275,9 +305,59 @@ def auditlog(
     "--verbose-exc",
     is_flag=True,
 )
+@click.argument(
+    "application_name",
+    type=click.STRING,
+)
 @pass_application
 def version(application: applications.MigrationApp, verbose: bool, **params: typing.Any) -> None:
     presenters.show_version(application=application, verbose=verbose)
+
+
+@cli.command()
+@click.option(
+    "--verbose-exc",
+    is_flag=True,
+)
+@click.option(
+    "--scripts-dir",
+    is_flag=True,
+)
+@click.option(
+    "--collection",
+    is_flag=True,
+)
+@click.option(
+    "--indexes",
+    is_flag=True,
+)
+@click.option(
+    "--schema-validation",
+    is_flag=True,
+)
+@click.argument(
+    "application_name",
+    type=click.STRING,
+)
+@pass_application
+def init(
+    application: applications.MigrationApp,
+    scripts_dir: bool,
+    collection: bool,
+    indexes: bool,
+    verbose_exc: bool,
+    schema_validation: bool,
+    **params: typing.Any,
+) -> None:
+    exit_code = use_cases.init(
+        application=application,
+        verbose_exc=verbose_exc,
+        init_scripts_dir=scripts_dir,
+        init_collection=collection,
+        init_collection_indexes=indexes,
+        init_collection_schema_validation=schema_validation,
+    )
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":
