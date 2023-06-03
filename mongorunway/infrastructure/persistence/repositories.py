@@ -70,17 +70,9 @@ class MongoModelRepositoryImpl(repository_port.MigrationModelRepository):
 
     def has_migration_with_version(self, migration_version: int, /) -> bool:
         with self._lock:
-            return (
-                self._collection.count_documents(
-                    {"_id": migration_version},
-                    comment=(
-                        f"Checking if the collection has a migration entry"
-                        f" "
-                        f"with id {migration_version}.",
-                    ),
-                )
-                > 0
-            )
+            return self._collection.count_documents(
+                {"_id": migration_version}
+            ) > 0
 
     def has_migrations(self) -> bool:
         with self._lock:
@@ -88,7 +80,6 @@ class MongoModelRepositoryImpl(repository_port.MigrationModelRepository):
                 self._collection.count_documents(
                     {},
                     limit=1,
-                    comment="Checking if the collection has at least one migration entry.",
                 )
             )
 
@@ -171,7 +162,6 @@ class MongoModelRepositoryImpl(repository_port.MigrationModelRepository):
         with self._lock:
             self._collection.insert_one(
                 schema,
-                comment="Adding a migration record to a collection.",
                 bypass_document_validation=True,
             )
 
@@ -182,7 +172,6 @@ class MongoModelRepositoryImpl(repository_port.MigrationModelRepository):
             self._collection.delete_one(
                 {"_id": migration_version},
                 hint=Index.UNIQUE.translate(),
-                comment="Delete migration record from the collection.",
             )
 
         return migration_version
@@ -193,11 +182,6 @@ class MongoModelRepositoryImpl(repository_port.MigrationModelRepository):
                 {"_id": migration.version},
                 {"$set": {"is_applied": is_applied}},
                 bypass_document_validation=True,
-                comment=(
-                    f"Change the flag of the current migration"
-                    f" "
-                    f"that has version {migration.version}."
-                ),
             )
 
         return migration.version

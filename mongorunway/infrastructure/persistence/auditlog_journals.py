@@ -58,27 +58,21 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
         self,
         entries: typing.Sequence[domain_auditlog_entry.MigrationAuditlogEntry],
     ) -> None:
-        total = self._collection.count_documents(
-            {},
-            comment="Get the total count of documents to check the limit.",
-        )
+        total = self._collection.count_documents({})
 
         if self._max_records is not None:
             remove = max(0, total - self._max_records + len(entries))
             if remove:
                 ids = [r["_id"] for r in self._collection.find().limit(remove)]
 
-                self._collection.delete_many(
-                    {"_id": {"$in": ids}},
-                    comment="Delete extra records based on the FIFO algorithm.",
-                )
+                # Delete extra records based on the FIFO algorithm.
+                self._collection.delete_many({"_id": {"$in": ids}})
 
         self._collection.insert_many(
             [dataclasses.asdict(entry) for entry in entries],
             # Audit log records have an automatically generated
             # identifier that does not need to be sorted.
             ordered=False,
-            comment="Add all audit log entries to the collection.",
         )
 
     def load_entries(
@@ -90,14 +84,7 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
 
         entries = [
             domain_auditlog_entry.MigrationAuditlogEntry.from_dict(entry)
-            for entry in self._collection.aggregate(
-                pipeline,
-                comment=(
-                    f"Loading all records with a limit of"
-                    f" "
-                    f"{'none' if limit is None else limit}.",
-                ),
-            )
+            for entry in self._collection.aggregate(pipeline)
         ]
 
         return entries
@@ -109,7 +96,6 @@ class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
         limit: typing.Optional[int] = None,
         ascending_date: bool = True,
     ) -> typing.Iterator[domain_auditlog_entry.MigrationAuditlogEntry]:
-        print(start, end)
         pipeline: typing.List[typing.Any] = [
             {"$sort": {"date": pymongo.ASCENDING if ascending_date else pymongo.DESCENDING}}
         ]
