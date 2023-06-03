@@ -28,7 +28,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r dev-requirements.txt
-
+      
+      - name: Fix file permissions
+        run: |
+          sudo chmod -R 777 /tmp/pytest-of-runner
+          
       - name: Run nox sessions
         run: |
           nox
