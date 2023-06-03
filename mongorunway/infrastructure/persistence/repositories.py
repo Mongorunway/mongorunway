@@ -169,10 +169,7 @@ class MongoModelRepositoryImpl(repository_port.MigrationModelRepository):
 
     def remove_migration(self, migration_version: int, /) -> int:
         with self._lock:
-            self._collection.delete_one(
-                {"_id": migration_version},
-                hint=Index.UNIQUE.translate(),
-            )
+            self._collection.delete_one({"_id": migration_version})
 
         return migration_version
 
