@@ -29,6 +29,7 @@ import typing
 import uuid
 
 import bson
+import typing_extensions
 
 from mongorunway import mongo
 from mongorunway import util
@@ -42,7 +43,11 @@ if typing.TYPE_CHECKING:
     from mongorunway.application.ports import filename_strategy as filename_strategy_port
     from mongorunway.domain import migration_event as domain_event
 
-_P = typing.ParamSpec("_P")
+try:
+    _P = typing.ParamSpec("_P")
+except AttributeError:
+    _P = typing_extensions.ParamSpec("_P")
+
 _T = typing.TypeVar("_T")
 
 TransactionT = typing.TypeVar("TransactionT", bound=transactions.MigrationTransaction)

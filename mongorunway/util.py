@@ -53,8 +53,13 @@ import types
 import typing
 
 import bson
+import typing_extensions
 
-_P = typing.ParamSpec("_P")
+try:
+    _P = typing.ParamSpec("_P")
+except AttributeError:
+    _P = typing_extensions.ParamSpec("_P")
+
 _T = typing.TypeVar("_T")
 _TT = typing.TypeVar("_TT", bound=typing.Type[typing.Any])
 

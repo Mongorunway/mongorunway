@@ -30,6 +30,8 @@ import functools
 import logging
 import typing
 
+import typing_extensions
+
 from mongorunway.application import event_manager
 from mongorunway.application import session
 from mongorunway.application import traits
@@ -46,7 +48,10 @@ if typing.TYPE_CHECKING:
     from mongorunway.domain import migration_event_manager as domain_event_manager
 
 _LOGGER: typing.Final[logging.Logger] = logging.getLogger("mongorunway.ui")
-_P = typing.ParamSpec("_P")
+try:
+    _P = typing.ParamSpec("_P")
+except AttributeError:
+    _P = typing_extensions.ParamSpec("_P")
 _TransactionCodeT = typing.TypeVar("_TransactionCodeT", bound=transactions.TransactionCode)
 
 

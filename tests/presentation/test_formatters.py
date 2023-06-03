@@ -21,7 +21,6 @@
 from __future__ import annotations
 
 import datetime
-import types
 import typing
 
 import bson
@@ -38,7 +37,7 @@ if typing.TYPE_CHECKING:
 
 @pytest.mark.parametrize(
     "date_parts, expected_type",
-    [(["2022-01-01", "12:34:56"], datetime.datetime), (None, types.NoneType)],
+    [(["2022-01-01", "12:34:56"], datetime.datetime), (None, type(None))],
 )
 def test_format_app_date(
     application: applications.MigrationApp,

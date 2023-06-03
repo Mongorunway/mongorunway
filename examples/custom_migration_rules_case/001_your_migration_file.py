@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import typing
 
-import mongorunway
-
 from custom_migration_rules_case.custom_rules import RequiredCollRule
+
+import mongorunway
 
 version = 1
 

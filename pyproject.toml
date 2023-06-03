@@ -24,4 +24,4 @@ warn_unused_ignores = true
 
 [tool.black]
 line-length = 99
-target-version = ["py38"]
+target-version = ["py39"]

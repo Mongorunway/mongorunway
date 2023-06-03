@@ -121,7 +121,8 @@ class MigrationEventManagerImpl(domain_event_manager.MigrationEventManager):
             handler_func = handler
             if isinstance(handler, domain_event.EventHandlerProxy):
                 handler_func = typing.cast(
-                    domain_event.EventHandlerT, handler.handler,
+                    domain_event.EventHandlerT,
+                    handler.handler,
                 )
 
             if not events:

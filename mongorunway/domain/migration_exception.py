@@ -50,7 +50,6 @@ class MigrationFailedError(MigrationError):
 
 
 class MigrationBusinessRuleBrokenError(Exception):
-
     __slots__ = ("rule",)
 
     def __init__(self, rule: domain_rule.MigrationBusinessRule) -> None:

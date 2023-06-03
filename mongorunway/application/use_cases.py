@@ -49,6 +49,8 @@ import sys
 import traceback
 import typing
 
+import typing_extensions
+
 from mongorunway import util
 from mongorunway.application import output
 from mongorunway.application import ux
@@ -62,7 +64,10 @@ if typing.TYPE_CHECKING:
     from mongorunway.domain import migration_auditlog_entry as domain_auditlog_entry
 
 _T = typing.TypeVar("_T")
-_P = typing.ParamSpec("_P")
+try:
+    _P = typing.ParamSpec("_P")
+except AttributeError:
+    _P = typing_extensions.ParamSpec("_P")
 
 PLUS: typing.Final[str] = "+"
 MINUS: typing.Final[str] = "-"
@@ -74,7 +79,7 @@ SUCCESS: typing.Final[ExitCode] = 0
 
 FAILURE: typing.Final[ExitCode] = 1
 
-UseCaseFailed: typing.Any = object()
+UseCaseFailed: typing.TypeAlias = object()
 r"""Use case callback sentinel.
 
 Some use cases that are designed to retrieve specific data may, by design, 
@@ -94,6 +99,9 @@ See Also
 --------
 ExitCode
 """
+
+if sys.version_info < (3, 11):
+    UseCaseFailed: typing.TypeAlias = typing.Any
 
 UseCaseFailedOr = typing.Union[_T, UseCaseFailed]
 

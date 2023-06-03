@@ -20,7 +20,6 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
-import types
 import typing
 
 import pytest
@@ -139,57 +138,6 @@ def test_read_events(
                     "port": 27017,
                 },
                 "app_database": "TestDatabase",
-                "app_auditlog_journal": {
-                    "collection": "test_auditlog",
-                },
-            },
-            auditlog_journal_port.AuditlogJournal,
-        ),
-        (
-            {
-                "app_auditlog_journal": {
-                    "collection": None,
-                },
-            },
-            types.NoneType,
-        ),
-        (
-            {
-                "app_client": {
-                    "host": "localhost",
-                    "port": 27017,
-                },
-                "app_database": "TestDatabase",
-                "app_auditlog_journal": {
-                    "type": "tests.infrastructure.test_config_readers.DummyClassAcceptsX",
-                    "kwargs": {
-                        "x": 1,
-                    },
-                    "reader": "tests.infrastructure.test_config_readers."
-                    "fake_auditlog_journal_reader",
-                },
-            },
-            DummyClassAcceptsX,
-        ),
-    ],
-)
-def test_read_auditlog_journal(
-    application_data: typing.Dict[str, typing.Any],
-    expected_type: typing.Type[typing.Any],
-) -> None:
-    assert isinstance(read_auditlog_journal(application_data), expected_type)
-
-
-@pytest.mark.parametrize(
-    "application_data, expected_type",
-    [
-        (
-            {
-                "app_client": {
-                    "host": "localhost",
-                    "port": 27017,
-                },
-                "app_database": "TestDatabase",
                 "app_repository": {
                     "collection": "test_collection",
                 },
@@ -223,6 +171,57 @@ def test_read_repository(
 
     with pytest.raises(KeyError):
         read_repository({})
+
+
+@pytest.mark.parametrize(
+    "application_data, expected_type",
+    [
+        (
+            {
+                "app_client": {
+                    "host": "localhost",
+                    "port": 27017,
+                },
+                "app_database": "TestDatabase",
+                "app_auditlog_journal": {
+                    "collection": "test_auditlog",
+                },
+            },
+            auditlog_journal_port.AuditlogJournal,
+        ),
+        (
+            {
+                "app_auditlog_journal": {
+                    "collection": None,
+                },
+            },
+            type(None),
+        ),
+        (
+            {
+                "app_client": {
+                    "host": "localhost",
+                    "port": 27017,
+                },
+                "app_database": "TestDatabase",
+                "app_auditlog_journal": {
+                    "type": "tests.infrastructure.test_config_readers.DummyClassAcceptsX",
+                    "kwargs": {
+                        "x": 1,
+                    },
+                    "reader": "tests.infrastructure.test_config_readers."
+                    "fake_auditlog_journal_reader",
+                },
+            },
+            DummyClassAcceptsX,
+        ),
+    ],
+)
+def test_read_auditlog_journal(
+    application_data: typing.Dict[str, typing.Any],
+    expected_type: typing.Type[typing.Any],
+) -> None:
+    assert isinstance(read_auditlog_journal(application_data), expected_type)
 
 
 def test_read_filename_strategy() -> None:
