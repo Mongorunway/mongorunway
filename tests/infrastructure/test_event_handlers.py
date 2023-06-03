@@ -20,6 +20,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+import os
 import typing
 
 import pytest
@@ -69,7 +70,9 @@ def test_recalculate_migrations_checksum(
 
     assert file_state.checksum == db_state.checksum
 
-    with open(tools.get_migration_file_path(migration, configuration), "a") as file:
+    filepath = tools.get_migration_file_path(migration, configuration)
+    os.chmod(filepath, 0o777)
+    with open(filepath, "a") as file:
         file.write("# abc")
 
     file_state = service.get_migration(migration.name, migration.version)
@@ -97,7 +100,9 @@ def test_raise_if_migrations_checksum_mismatch(
 
     assert file_state.checksum == db_state.checksum
 
-    with open(tools.get_migration_file_path(migration, configuration), "a") as file:
+    filepath = tools.get_migration_file_path(migration, configuration)
+    os.chmod(filepath, 0o777)
+    with open(filepath, "a") as file:
         file.write("# abc")
 
     with pytest.raises(domain_exception.MigrationFileChangedError):
