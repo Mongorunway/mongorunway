@@ -20,15 +20,40 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "MIGRATION_SCHEMA_VALIDATOR",
+    "PENDING_MIGRATION_INDEX",
+    "APPLIED_MIGRATION_INDEX",
+    "ValidationAction",
+    "ValidationLevel",
+    "configure_logging",
+    "configure_migration_indexes",
+    "configure_migration_directory",
+    "configure_migration_collection",
+    "configure_migration_schema_validators",
+    "init_components",
+    "init_logging",
+    "init_migration_indexes",
+    "init_schema_validators",
+    "init_migration_collection",
+    "init_migration_directory",
+    "remove_migration_indexes",
+    "remove_migration_schema_validators",
+    "sync_scripts_with_repository",
+)
+
 import enum
 import logging
 import logging.config
 import os
 import typing
 
+from mongorunway.application.services import migration_service
+
 if typing.TYPE_CHECKING:
     from mongorunway import mongo
     from mongorunway.application import config
+    from mongorunway.application import traits
 
 _LOGGER: typing.Final[logging.Logger] = logging.getLogger("mongorunway.ux")
 
@@ -209,6 +234,28 @@ def remove_migration_schema_validators(collection: mongo.Collection) -> None:
 
 
 # HIGH-LEVEL UX TOOLS
+
+
+def sync_scripts_with_repository(
+    application: traits.MigrationSessionAware,
+) -> typing.Sequence[str]:
+    synced = []
+    service = migration_service.MigrationService(application.session)
+    for migration in service.get_migrations():
+        if not application.session.has_migration(migration):
+            application.session.append_migration(migration)
+            synced.append(migration.name)
+
+            _LOGGER.info(
+                "%s: migration '%s' with version %s was synced"
+                " "
+                "and successfully append to pending.",
+                sync_scripts_with_repository.__name__,
+                migration.name,
+                migration.version,
+            )
+
+    return synced
 
 
 def init_logging(configuration: config.Config, /) -> None:

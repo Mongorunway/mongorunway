@@ -27,8 +27,8 @@ import pytest
 from mongorunway.application.ports import auditlog_journal as auditlog_journal_port
 from mongorunway.application.ports import repository as repository_port
 from mongorunway.domain import migration_event as domain_event
-from mongorunway.infrastructure.config_readers import default_auditlog_journal_reader
-from mongorunway.infrastructure.config_readers import default_repository_reader
+from mongorunway.infrastructure.config_readers import default_mongo_repository_reader
+from mongorunway.infrastructure.config_readers import default_mongo_auditlog_journal_reader
 from mongorunway.infrastructure.config_readers import read_auditlog_journal
 from mongorunway.infrastructure.config_readers import read_event_handlers
 from mongorunway.infrastructure.config_readers import read_events
@@ -81,13 +81,14 @@ def default_data(mongodb: mongo.Database) -> typing.Dict[str, typing.Any]:
 
 def test_default_auditlog_journal_reader(default_data: typing.Dict[str, typing.Any]) -> None:
     assert isinstance(
-        default_auditlog_journal_reader(default_data), auditlog_journals.AuditlogJournalImpl
+        default_mongo_auditlog_journal_reader(default_data),
+        auditlog_journals.MongoAuditlogJournalImpl,
     )
 
 
 def test_default_repository_reader(default_data: typing.Dict[str, typing.Any]) -> None:
     assert isinstance(
-        default_repository_reader(default_data), repositories.MongoModelRepositoryImpl
+        default_mongo_repository_reader(default_data), repositories.MongoModelRepositoryImpl
     )
 
 

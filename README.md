@@ -5,6 +5,11 @@
     <img src="assets/logo.jpg" align="left" width="300px" height="300px"/>
     <div style="margin-left: 20px;">
       <h2 style="font-family: 'Arial', sans-serif;">Mongorunway</h2>
+        <div class="centered-icons">
+            <img src="https://img.shields.io/github/actions/workflow/status/Animatea/mongorunway/main.yml?style=flat" alt="CI">
+            <img src="https://img.shields.io/pypi/pyversions/mongorunway" alt="Py versions">
+            <img src="https://img.shields.io/badge/mongodb-4.2 | 4.4 | 5.0 | 6.0-brightgreen" alt="Mongo versions">
+        </div>
 
   <p style="font-family: 'Arial', sans-serif; font-size: 14px;">
     Mongorunway is a tool designed for easy and convenient migration of MongoDB databases.
@@ -23,18 +28,33 @@
   <h3 style="font-family: 'Arial', sans-serif;">Features:</h3>
 
   <ul style="font-family: 'Arial', sans-serif; font-size: 14px;">
-    <li>Ease of Use: Mongorunway is designed with a focus on an intuitive interface and ease of use.
+    <li>**Ease of Use:** Mongorunway is designed with a focus on an intuitive interface and ease of use.
       You don't need to be an expert in MongoDB or data migration to take advantage of all the
       capabilities this tool provides.</li>
-    <li>Flexibility and Power: Mongorunway offers a wide range of features and capabilities that
-      make it easy to handle complex data migration scenarios.
-      From simple one-time migrations to phased updates with versioning support, Mongorunway can be
-      configured to meet your needs.</li>
+    <li>**Precise Control with Rule-based Implementation:** With its meticulously crafted rule-based 
+    implementation, Mongorunway enables precise control and customization prior to 
+    executing specific migration processes. This ensures that migrations are executed in a 
+    controlled and reliable manner, allowing for seamless transitions between different database 
+    versions.</li>
+    <li>**Flexibility and Adaptability with Event-Driven Architecture:** Driven by an advanced 
+    Event-Driven architecture, the project excels in handling a multitude of events, ensuring 
+    optimal flexibility and adaptability throughout the migration journey. Developers can leverage 
+    this powerful architecture to efficiently handle various scenarios and events, resulting in a 
+    smooth and efficient migration process.</li>
+    <li>**Extensibility through Custom Components:** Mongorunway boasts a highly 
+    flexible architecture, opening up a world of possibilities for users to implement their own 
+    custom components through well-defined public interfaces (ports). This extensibility empowers 
+    developers to tailor the tool to their unique requirements, enabling them to add specialized 
+    functionalities and enhance overall productivity.</li>
+    <li>**Customization Beyond the Basics:** While equipped with a comprehensive range of built-in 
+    commands catering to common migration tasks, Mongorunway goes a step further by 
+    offering the ability to create custom commands. This exceptional feature enables developers to 
+    fine-tune the tool to align precisely with their specific needs and preferences.</li>
   </ul>
 
   <p style="font-family: 'Arial', sans-serif; font-size: 14px;">
     For more information, please refer to the 
-    <a href="https://docs.mongorunway.com" style="color: #4FB4BF;">documentation (soon)</a>.
+    <a href="https://animatea.github.io/mongorunway/" style="color: #4FB4BF;">documentation</a>.
   </p>
 
   <h3 style="font-family: 'Arial', sans-serif;">Project Perspectives:</h3>
@@ -46,16 +66,7 @@
     will benefit from faster and optimized migration processes, enabling more efficient interactions 
     with MongoDB databases.
   </p>
-
-  <h3 style="font-family: 'Arial', sans-serif;">Temporary Warning:</h3>
-
-  <p style="font-family: 'Arial', sans-serif; font-size: 14px;">
-    Currently, the project is in the development stage (in-dev) and is not ready for use.
-  </p>
-
   </div>
 </div>
   <hr style="border: 1px solid #4FB4BF; margin-top: 20px; margin-bottom: 20px;">
 </body>
-
-<img src="https://img.shields.io/github/actions/workflow/status/Animatea/mongorunway/main.yml?style=flat">

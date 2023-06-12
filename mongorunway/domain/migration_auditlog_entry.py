@@ -20,6 +20,8 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = ("MigrationAuditlogEntry",)
+
 import dataclasses
 import datetime
 import typing

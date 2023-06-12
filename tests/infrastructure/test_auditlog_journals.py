@@ -29,7 +29,7 @@ import pytest
 
 from mongorunway.domain import migration as domain_migration
 from mongorunway.domain import migration_auditlog_entry as domain_entry
-from mongorunway.infrastructure.persistence.auditlog_journals import AuditlogJournalImpl
+from mongorunway.infrastructure.persistence.auditlog_journals import MongoAuditlogJournalImpl
 
 if typing.TYPE_CHECKING:
     from mongorunway import mongo
@@ -67,7 +67,7 @@ def entry3(entry: domain_entry.MigrationAuditlogEntry) -> domain_entry.Migration
 class TestAuditlogJournalImpl:
     @pytest.fixture
     def auditlog_journal(self, mongodb: mongo.Database) -> auditlog_journal_port.AuditlogJournal:
-        return AuditlogJournalImpl(auditlog_collection=mongodb.test_collection)
+        return MongoAuditlogJournalImpl(auditlog_collection=mongodb.test_collection)
 
     def test_initializes_correctly(
         self,

@@ -36,7 +36,6 @@ import abc
 import logging
 import typing
 
-from mongorunway import mongo
 from mongorunway import util
 from mongorunway.application import session
 from mongorunway.application.services import validation_service
@@ -163,7 +162,7 @@ class AbstractMigrationTransaction(MigrationTransaction, abc.ABC):
                 mongodb_session_id,
                 type(exc).__name__,
             )
-            _LOGGER.debug("Error details of transaction execution: %s", str(exc))
+            _LOGGER.error("Error details of transaction execution: %s", str(exc))
 
             self._exc_val = exc
             self.rollback(self._migration, session_context)
@@ -236,7 +235,6 @@ class UpgradeTransaction(AbstractMigrationTransaction):
         migration: domain_migration.Migration,
         mongo_session: session.MongoSessionContext,
     ) -> None:
-        mongo_session.abort_transaction()
         self._migration_session.set_applied_flag(migration, False)
 
     def _commit(
@@ -244,7 +242,6 @@ class UpgradeTransaction(AbstractMigrationTransaction):
         migration: domain_migration.Migration,
         mongo_session: session.MongoSessionContext,
     ) -> None:
-        mongo_session.commit_transaction()
         self._migration_session.set_applied_flag(migration, True)
 
 
@@ -259,7 +256,6 @@ class DowngradeTransaction(AbstractMigrationTransaction):
         migration: domain_migration.Migration,
         mongo_session: session.MongoSessionContext,
     ) -> None:
-        mongo_session.abort_transaction()
         self._migration_session.set_applied_flag(migration, True)
 
     def _commit(
@@ -267,5 +263,4 @@ class DowngradeTransaction(AbstractMigrationTransaction):
         migration: domain_migration.Migration,
         mongo_session: session.MongoSessionContext,
     ) -> None:
-        mongo_session.commit_transaction()
         self._migration_session.set_applied_flag(migration, False)

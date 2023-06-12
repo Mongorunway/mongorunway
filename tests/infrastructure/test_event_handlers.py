@@ -31,8 +31,7 @@ from mongorunway.domain import migration_event as domain_event
 from mongorunway.domain import migration_exception as domain_exception
 from mongorunway.infrastructure.event_handlers import raise_if_migrations_checksum_mismatch
 from mongorunway.infrastructure.event_handlers import recalculate_migrations_checksum
-from mongorunway.infrastructure.event_handlers import sync_scripts_with_queues
-from tests import tools
+from mongorunway.infrastructure.event_handlers import sync_scripts_with_repository
 
 if typing.TYPE_CHECKING:
     from mongorunway.application import applications
@@ -50,7 +49,7 @@ def test_sync_scripts_with_queues(
     assert len(service.get_migrations()) == 1
 
     assert len(list(application.session.get_all_migration_models())) == 0
-    sync_scripts_with_queues(domain_event.ApplicationEvent(application=application))
+    sync_scripts_with_repository(domain_event.ApplicationEvent(application=application))
     assert len(list(application.session.get_all_migration_models())) == 1
 
 

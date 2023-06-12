@@ -20,6 +20,17 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "EventHandler",
+    "EventHandlerProxy",
+    "EventHandlerProxyOr",
+    "EventHandlerT",
+    "StartingEvent",
+    "ClosingEvent",
+    "ApplicationEvent",
+    "MigrationEvent",
+)
+
 import typing
 
 import attr
@@ -72,4 +83,9 @@ class ApplicationEvent(MigrationEvent):
 
 @attr.define
 class StartingEvent(ApplicationEvent):
+    pass
+
+
+@attr.define
+class ClosingEvent(ApplicationEvent):
     pass

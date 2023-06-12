@@ -1,11 +1,10 @@
 mongorunway:
   filesystem:
-    scripts_dir: custom_repository_case\mongorunway\
+    scripts_dir: custom_repository_case\migrations\
 
   applications:
     myapp:
       app_client:
-        # MongoClient settings.
         host: localhost
         port: 27017
 
@@ -15,7 +14,3 @@ mongorunway:
         json_filepath: migrations.json
         type: custom_repository_case.json_repository.JSONRepositoryImpl
         reader: custom_repository_case.config_readers.json_repository_reader
-
-      app_subscribed_events:
-        mongorunway.domain.migration_event.StartingEvent:
-          - mongorunway.infrastructure.event_handlers.sync_scripts_with_queues

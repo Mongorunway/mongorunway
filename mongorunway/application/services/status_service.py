@@ -20,6 +20,8 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = ("check_if_all_pushed_successfully",)
+
 import typing
 
 from mongorunway.application.services import migration_service

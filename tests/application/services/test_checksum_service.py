@@ -39,4 +39,4 @@ def test_calculate_template_migration_checksum(tmp_path: pathlib.Path) -> None:
         )
 
     module = domain_module.MigrationBusinessModule(util.get_module(str(tmp_path), filename))
-    assert calculate_migration_checksum(module) == "26c2b7999e05d43ebd8f35f40d0f3af3"
+    assert calculate_migration_checksum(module) == "fab6ec5a26e7455d67e299f0d6ea25fc"

@@ -189,11 +189,14 @@ class MigrationAppImpl(MigrationApp):
         self._migration_service = migration_service.MigrationService(app_session)
 
         self._event_manager = event_manager.MigrationEventManagerImpl()
-        for event_type, event_handlers in configuration.application.app_subscribed_events.items():
+        for event_type, event_handlers in configuration.application.app_events.items():
             for handler in event_handlers:
                 self._event_manager.subscribe_event_handler(handler, event_type)
 
         self._event_manager.dispatch(domain_event.StartingEvent(self))
+
+    def __del__(self) -> None:
+        self._event_manager.dispatch(domain_event.ClosingEvent(self))
 
     @property
     def name(self) -> str:

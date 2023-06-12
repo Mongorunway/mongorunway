@@ -26,7 +26,7 @@ __all__: typing.Sequence[str] = (
     "MigrationTransactionFailedError",
     "NothingToUpgradeError",
     "NothingToDowngradeError",
-    "MigrationHookError",
+    "MigrationFilesChangedError",
     "MigrationFileChangedError",
 )
 
@@ -82,13 +82,7 @@ class NothingToDowngradeError(MigrationFailedError):
         return "There are currently no applied migrations."
 
 
-class MigrationHookError(MigrationError):
-    __slots__: typing.Sequence[str] = ()
-
-    pass
-
-
-class MigrationFileChangedError(MigrationHookError):
+class MigrationFileChangedError(BaseException):
     __slots__: typing.Sequence[str] = (
         "failed_migration_name",
         "failed_migration_version",
@@ -101,3 +95,12 @@ class MigrationFileChangedError(MigrationHookError):
         super().__init__(
             f"Migration {migration_name!r} with version {migration_version!r} is changed."
         )
+
+
+class MigrationFilesChangedError(BaseException):
+    __slots__: typing.Sequence[str] = ("migration_names",)
+
+    def __init__(self, *migration_names: str) -> None:
+        self.migration_names = migration_names
+
+        super().__init__(f"{migration_names!r} migrations files have been modified.")

@@ -20,6 +20,16 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "MigrationSessionImpl",
+    "MigrationSession",
+    "MongoSessionContextT",
+    "MongoSessionContext",
+    "TransactionT",
+    "TransactionContext",
+    "requires_auditlog",
+)
+
 import abc
 import contextlib
 import datetime
@@ -371,7 +381,7 @@ class MigrationSessionImpl(MigrationSession):
         typing.Type[domain_event.MigrationEvent],
         typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]],
     ]:
-        return self._config.application.app_subscribed_events
+        return self._config.application.app_events
 
     @property
     def session_auditlog_limit(self) -> typing.Optional[int]:
@@ -391,7 +401,7 @@ class MigrationSessionImpl(MigrationSession):
 
     @property
     def uses_strict_file_naming(self) -> bool:
-        return self._config.filesystem.strict_naming
+        return self._config.filesystem.use_filename_strategy
 
     @property
     def uses_schema_validation(self) -> bool:

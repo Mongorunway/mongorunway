@@ -70,9 +70,7 @@ class MongoModelRepositoryImpl(repository_port.MigrationModelRepository):
 
     def has_migration_with_version(self, migration_version: int, /) -> bool:
         with self._lock:
-            return self._collection.count_documents(
-                {"_id": migration_version}
-            ) > 0
+            return self._collection.count_documents({"_id": migration_version}) > 0
 
     def has_migrations(self) -> bool:
         with self._lock:

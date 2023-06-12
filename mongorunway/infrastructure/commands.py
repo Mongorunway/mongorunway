@@ -80,12 +80,11 @@ def make_snake_case_global_alias(
         called_without_args: bool,
     ) -> _CommandTT:
         def func(
-            ctx: domain_context.MigrationContext,
             *args: typing.Any,
             **kwargs: typing.Any,
         ) -> typing.Any:
             cls_instance = cls(*args, **kwargs)
-            return cls_instance.execute(ctx)
+            return cls_instance
 
         func.__name__ = util.as_snake_case(cls)
         func.__doc__ = cls.__doc__

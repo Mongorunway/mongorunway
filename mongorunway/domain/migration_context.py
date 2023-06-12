@@ -20,6 +20,10 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = ("MigrationContext",)
+
+import typing
+
 import attr
 
 from mongorunway import mongo

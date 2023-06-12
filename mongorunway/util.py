@@ -22,10 +22,9 @@ r"""Utilities.
 
 The module contains utilities that can be used in a project.
 
-Notes
------
-This module is independent of all other modules and can only use
-built-in or third-party libraries.
+!!! info
+    This module is independent of all other modules and can only use
+    built-in or third-party libraries.
 """
 
 from __future__ import annotations
@@ -48,6 +47,7 @@ import importlib
 import importlib.util
 import os
 import re
+import sys
 import time
 import types
 import typing
@@ -213,8 +213,10 @@ def build_mapping_values(
 
     Example
     -------
+    ```py
     >>> build_mapping_values({1: "undefined", 2: "ok", 3: "no"})
     {1: None, 2: True, 3: False}
+    ```
 
     See Also
     --------
@@ -251,8 +253,10 @@ def build_optional_kwargs(
 
     Example
     -------
+    ```py
     >>> build_optional_kwargs([1, 2], {1: None, 2: "ok", 3: "no"})
     {2: True}
+    ```
 
     See Also
     --------
@@ -294,6 +298,7 @@ def get_module(directory: str, filename: str) -> types.ModuleType:
 
     Example
     -------
+    ```py
     >>> from types import ModuleType
     ... # Obtains the current file util.py when running doctest
     ... # in the current directory.
@@ -302,11 +307,13 @@ def get_module(directory: str, filename: str) -> types.ModuleType:
     >>> from types import ModuleType
     ... # Also supports the format without a file extension.
     >>> assert isinstance(get_module("", "util"), ModuleType)
+    ```
 
     See Also
     --------
     importlib.spec_from_file_location
     """
+    sys.path.append(os.getcwd())
     if not filename.endswith(".py"):
         filename += ".py"
 
@@ -319,6 +326,8 @@ def get_module(directory: str, filename: str) -> types.ModuleType:
     module = importlib.util.module_from_spec(spec)
     assert spec.loader is not None  # For type checkers only
     spec.loader.exec_module(module)
+
+    sys.path.remove(os.getcwd())
     return module
 
 
@@ -378,14 +387,15 @@ def is_valid_filename(directory: str, filename: str) -> bool:
     -----
     The function checks if a file exists in the specified directory.
     Additionally, the file must have the extension '.py' and should not
-    start with a dunder [1].
+    start with a dunder[^1].
 
     References
     ----------
-    .. [1] Dunder: The term "dunder" is a short form of "double underscore"
-       and is commonly used to refer to special methods or attributes in
-       Python that are surrounded by double underscores on both sides, such
-       as __init__ or __name__.
+    [^1]:
+        Dunder: The term "dunder" is a short form of "double underscore"
+        and is commonly used to refer to special methods or attributes in
+        Python that are surrounded by double underscores on both sides, such
+        as __init__ or __name__.
     """
     if not os.path.isdir(directory):
         raise ValueError(f"The specified path {directory!r} is not a directory.")
@@ -420,6 +430,7 @@ def as_snake_case(obj: typing.Any) -> str:
 
     Example
     -------
+    ```py
     >>> class DummyClass: pass
     >>> dummy_obj = DummyClass()
     >>> as_snake_case(DummyClass)
@@ -430,6 +441,7 @@ def as_snake_case(obj: typing.Any) -> str:
     'snake_case_str'
     >>> as_snake_case("camelCase")
     'camel_case'
+    ```
     """
     if not isinstance(obj, str):
         obj_name = getattr(obj, "__name__", None)

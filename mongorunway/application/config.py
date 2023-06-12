@@ -20,6 +20,13 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "FileSystemConfig",
+    "Config",
+    "ApplicationConfig",
+    "VERSIONING_STARTS_FROM",
+)
+
 import typing
 
 import attr
@@ -39,7 +46,11 @@ class FileSystemConfig:
     scripts_dir: str = attr.field(repr=True, validator=attr.validators.instance_of(str))
     config_dir: str = attr.field(repr=False, validator=attr.validators.instance_of(str))
     filename_strategy: filename_strategy_port.FilenameStrategy = attr.field(repr=True)
-    strict_naming: bool = attr.field(default=True, converter=attr.converters.to_bool, repr=True)
+    use_filename_strategy: bool = attr.field(
+        default=True,
+        converter=attr.converters.to_bool,
+        repr=True,
+    )
 
 
 @attr.define(frozen=True, kw_only=True, repr=True, eq=True)
@@ -64,7 +75,7 @@ class ApplicationConfig:
         default="%Y-%m-%d %H:%M:%S",
         validator=attr.validators.instance_of(str),
     )
-    app_subscribed_events: typing.Mapping[
+    app_events: typing.Mapping[
         typing.Type[domain_event.MigrationEvent],
         typing.Sequence[domain_event.EventHandlerProxyOr[domain_event.EventHandler]],
     ] = attr.field(factory=dict, repr=False)

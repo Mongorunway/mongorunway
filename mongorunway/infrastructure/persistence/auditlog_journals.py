@@ -20,7 +20,7 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
-__all__: typing.Sequence[str] = ("AuditlogJournalImpl",)
+__all__: typing.Sequence[str] = ("MongoAuditlogJournalImpl",)
 
 import dataclasses
 import datetime
@@ -36,7 +36,7 @@ if typing.TYPE_CHECKING:
     from mongorunway import mongo
 
 
-class AuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
+class MongoAuditlogJournalImpl(auditlog_journal_port.AuditlogJournal):
     __slots__: typing.Sequence[str] = ("_collection", "_max_records")
 
     def __init__(

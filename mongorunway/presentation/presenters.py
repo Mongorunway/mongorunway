@@ -20,6 +20,12 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "show_status",
+    "show_version",
+    "show_auditlog_entries",
+)
+
 import typing
 
 import terminaltables  # type: ignore[import]
@@ -60,14 +66,13 @@ def show_auditlog_entries(
         )
 
 
-def show_version(application: applications.MigrationApp, verbose: bool) -> None:
+def show_version(application: applications.MigrationApp) -> None:
     version_result = application.session.get_current_version()
 
     if version_result is not use_cases.UseCaseFailed:
         presentation = f"Current applied version is {version_result}"
-        if verbose:
-            all_applied_migrations_len = len(list(application.session.get_all_migration_models()))
-            presentation += f" " + f"({version_result} of {all_applied_migrations_len})"
+        all_applied_migrations_len = len(list(application.session.get_all_migration_models()))
+        presentation += f" " + f"({version_result} of {all_applied_migrations_len})"
 
         output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
         output.print_success(presentation)
@@ -75,7 +80,6 @@ def show_version(application: applications.MigrationApp, verbose: bool) -> None:
 
 def show_status(
     application: applications.MigrationApp,
-    verbose: bool,
     verbose_exc: bool,
     pushed_depth: int = -1,
 ) -> None:
@@ -92,12 +96,11 @@ def show_status(
         else:
             presentation = f"Applying failed in depth {pushed_depth!r}"
 
-        if verbose:
-            presentation += f" " + (
-                f"({application.session.get_current_version()}"
-                f" "
-                f"of {len(list(application.session.get_all_migration_models()))})"
-            )
+        presentation += f" " + (
+            f"({application.session.get_current_version()}"
+            f" "
+            f"of {len(list(application.session.get_all_migration_models()))})"
+        )
 
-            output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
-            output.print_info(presentation)
+        output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
+        output.print_info(presentation)

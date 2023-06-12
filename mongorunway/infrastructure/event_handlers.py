@@ -20,6 +20,12 @@
 # SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 from __future__ import annotations
 
+__all__: typing.Sequence[str] = (
+    "sync_scripts_with_repository",
+    "recalculate_migrations_checksum",
+    "raise_if_migrations_checksum_mismatch",
+)
+
 import logging
 import typing
 
@@ -30,7 +36,7 @@ from mongorunway.domain import migration_exception as domain_exception
 _LOGGER: typing.Final[logging.Logger] = logging.getLogger("root.event_handlers")
 
 
-def sync_scripts_with_queues(event: domain_event.ApplicationEvent) -> None:
+def sync_scripts_with_repository(event: domain_event.ApplicationEvent) -> None:
     service = migration_service.MigrationService(event.application.session)
     for migration in service.get_migrations():
         if not event.application.session.has_migration(migration):
@@ -40,7 +46,7 @@ def sync_scripts_with_queues(event: domain_event.ApplicationEvent) -> None:
                 "%s: migration '%s' with version %s was synced"
                 " "
                 "and successfully append to pending.",
-                sync_scripts_with_queues.__name__,
+                sync_scripts_with_repository.__name__,
                 migration.name,
                 migration.version,
             )

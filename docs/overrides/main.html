@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block announce %}
+
+    If you have found a bug
+    <span class="twemoji bug">
+      {% include ".icons/octicons/bug-16.svg" %}
+    </span> &mdash;
+    <a href="{{ 'https://github.com/Animatea/mongorunway/issues' | url }}"><strong>let us know</strong></a>
+    <strong>!</strong>
+
+  Stay tuned for updates
+  <a href="https://github.com/Animatea/mongorunway/blob/main/CHANGELOG.md">
+    <strong>here</strong>
+    <span class="twemoji code-pull-request">
+      {% include ".icons/fontawesome/solid/code-pull-request.svg" %}
+    </span>
+  </a>
+{% endblock %}

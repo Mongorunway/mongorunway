@@ -21,8 +21,8 @@
 from __future__ import annotations
 
 __all__: typing.Sequence[str] = (
-    "default_repository_reader",
-    "default_auditlog_journal_reader",
+    "default_mongo_repository_reader",
+    "default_mongo_auditlog_journal_reader",
     "read_repository",
     "read_events",
     "read_event_handlers",
@@ -86,7 +86,7 @@ logging_config: typing.Dict[str, typing.Any] = {
 }
 
 
-def default_repository_reader(
+def default_mongo_repository_reader(
     application_data: typing.Dict[str, typing.Any],
 ) -> repository_port.MigrationModelRepository:
     client = mongo.Client(**util.build_mapping_values(application_data["app_client"]))
@@ -95,7 +95,7 @@ def default_repository_reader(
     return repositories.MongoModelRepositoryImpl(collection)
 
 
-def default_auditlog_journal_reader(
+def default_mongo_auditlog_journal_reader(
     application_data: typing.Dict[str, typing.Any],
 ) -> typing.Optional[auditlog_journal_port.AuditlogJournal]:
     if (collection := application_data["app_auditlog_journal"].get("collection")) is None:
@@ -104,7 +104,7 @@ def default_auditlog_journal_reader(
     client = mongo.Client(**util.build_mapping_values(application_data["app_client"]))
     database = client.get_database(application_data["app_database"])
     collection = database.get_collection(collection)
-    return auditlog_journals.AuditlogJournalImpl(collection)
+    return auditlog_journals.MongoAuditlogJournalImpl(collection)
 
 
 @typing.no_type_check
@@ -114,7 +114,7 @@ def read_event_handlers(
     handlers: typing.List[domain_event.EventHandlerProxyOr[domain_event.EventHandler]] = []
 
     for handler_name in handler_name_seq:
-        match = re.match(event_handler_pattern, handler_name)
+        match = re.match(event_handler_pattern, handler_name.replace(" ", ""))
         if match:
             if match.group(1):  # If there is a group 1, then there is a structure "Priority".
                 priority = int(match.group(1))
@@ -124,7 +124,6 @@ def read_event_handlers(
                 handler_func_path = match.group(3)
 
             try:
-                print(654654, handler_func_path)
                 handler = util.import_obj(handler_func_path, cast=domain_event.EventHandler)
             except AttributeError as exc:
                 raise AttributeError(f"Undefined event handler: {handler_func_path!r}.") from exc
@@ -192,7 +191,7 @@ def read_repository(
 
         if (repo_type := application_data.get("type")) is None:
             reader = util.import_obj(
-                "mongorunway.infrastructure.config_readers.default_repository_reader",
+                "mongorunway.infrastructure.config_readers.default_mongo_repository_reader",
                 cast=typing.Callable[
                     [typing.Dict[str, typing.Any]],
                     repository_port.MigrationModelRepository,
@@ -231,7 +230,7 @@ def read_auditlog_journal(
 
         if (audit_type := application_data.get("type")) is None:
             reader = util.import_obj(
-                "mongorunway.infrastructure.config_readers.default_auditlog_journal_reader",
+                "mongorunway.infrastructure.config_readers.default_mongo_auditlog_journal_reader",
                 cast=typing.Callable[
                     [typing.Dict[str, typing.Any]],
                     auditlog_journal_port.AuditlogJournal,
@@ -286,7 +285,7 @@ class BaseConfigReader(config_reader_port.ConfigReader):
 
 
 class YamlConfigReader(BaseConfigReader):
-    potential_config_filenames = ["mongorunway.yaml"]
+    potential_config_filenames = ["mongorunway.yaml", "mongorunway.yml"]
 
     def _read_config(self, config_filepath: str) -> typing.Optional[config.Config]:
         with open(config_filepath, "r") as config_file:
@@ -318,7 +317,7 @@ class YamlConfigReader(BaseConfigReader):
                 ),
             ),
             **util.build_optional_kwargs(
-                ("strict_naming",),
+                ("use_filename_strategy",),
                 filesystem_data,
             ),
         )
@@ -335,7 +334,7 @@ class YamlConfigReader(BaseConfigReader):
             app_database=client.get_database(application_data["app_database"]),
             app_repository=read_repository(application_data),
             app_auditlog_journal=read_auditlog_journal(application_data),
-            app_subscribed_events=read_events(application_data.get("app_subscribed_events", {})),
+            app_events=read_events(application_data.get("app_events", {})),
             **util.build_optional_kwargs(
                 (
                     "app_timezone",

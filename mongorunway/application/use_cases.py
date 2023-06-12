@@ -41,10 +41,16 @@ __all__: typing.Sequence[str] = (
     "upgrade",
     "usecase",
     "walk",
+    "refresh",
+    "safe_remove_migration",
+    "safe_remove_all_migrations",
+    "check_files",
+    "refresh_checksums",
 )
 
 import datetime
 import functools
+import os
 import sys
 import traceback
 import typing
@@ -57,6 +63,7 @@ from mongorunway.application import ux
 from mongorunway.application.ports import config_reader as config_reader_port
 from mongorunway.application.services import migration_service
 from mongorunway.application.services import status_service
+from mongorunway.domain import migration_exception as domain_exception
 
 if typing.TYPE_CHECKING:
     from mongorunway.application import applications
@@ -115,10 +122,10 @@ def usecase(
         def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> ExitCode:
             try:
                 func(*args, **kwargs)
-            except BaseException as exc:
+            except Exception as exc:
                 render_error(
                     exc,
-                    verbose=typing.cast(
+                    verbose_exc=typing.cast(
                         bool,
                         kwargs["verbose_exc"] if has_verbose_exc else False,
                     ),
@@ -141,10 +148,10 @@ def query_usecase(
         def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> UseCaseFailedOr[_T]:
             try:
                 callback = func(*args, **kwargs)
-            except BaseException as exc:
+            except Exception as exc:
                 render_error(
                     exc,
-                    verbose=typing.cast(
+                    verbose_exc=typing.cast(
                         bool,
                         kwargs["verbose_exc"] if has_verbose_exc else False,
                     ),
@@ -162,7 +169,6 @@ def query_usecase(
 def downgrade(
     application: applications.MigrationApp,
     expression: str,
-    verbose: bool,
     verbose_exc: bool,
 ) -> ExitCode:
     func: typing.Optional[typing.Callable[..., ExitCode]] = None
@@ -170,22 +176,19 @@ def downgrade(
 
     if expression.isdigit():
         func, args = application.downgrade_to, (int(expression),)
+    elif expression == MINUS:
+        func = application.downgrade_once
     elif len(expression) > 1 and expression.startswith(MINUS):
         func, args = application.downgrade_to, (
             int(expression) + (application.session.get_current_version() or 0),
         )
-    elif expression == MINUS:
-        func = application.downgrade_once
     elif expression == ALL:
         func = application.downgrade_all
 
     if func is None:
         raise ValueError(f"The following expression cannot be applied: {expression!r}")
 
-    render_downgrade_results(
-        verbose,
-        *util.timeit_func(func, *args),
-    )
+    render_downgrade_results(*util.timeit_func(func, *args))
 
     return SUCCESS
 
@@ -194,7 +197,6 @@ def downgrade(
 def upgrade(
     application: applications.MigrationApp,
     expression: str,
-    verbose: bool,
     verbose_exc: bool,
 ) -> ExitCode:
     func: typing.Optional[typing.Callable[..., ExitCode]] = None
@@ -202,22 +204,19 @@ def upgrade(
 
     if expression.isdigit():
         func, args = application.upgrade_to, (int(expression),)
+    elif expression == PLUS:
+        func = application.upgrade_once
     elif expression.startswith(PLUS):
         func, args = application.upgrade_to, (
             int(expression[1:]) + (application.session.get_current_version() or 0),
         )
-    elif expression == PLUS:
-        func = application.upgrade_once
     elif expression == ALL:
         func = application.upgrade_all
 
     if func is None:
         raise ValueError(f"The following expression cannot be applied: {expression!r}")
 
-    render_upgrade_results(
-        verbose,
-        *util.timeit_func(func, *args),
-    )
+    render_upgrade_results(*util.timeit_func(func, *args))
 
     return SUCCESS
 
@@ -226,7 +225,6 @@ def upgrade(
 def walk(
     application: applications.MigrationApp,
     expression: str,
-    verbose: bool,
     verbose_exc: bool,
 ) -> ExitCode:
     if expression[0] not in {PLUS, MINUS}:
@@ -240,14 +238,12 @@ def walk(
         return downgrade(
             application=application,
             expression=expression,
-            verbose=verbose,
             verbose_exc=verbose_exc,
         )
 
     return upgrade(
         application=application,
         expression=expression,
-        verbose=verbose,
         verbose_exc=verbose_exc,
     )
 
@@ -269,6 +265,122 @@ def create_migration_file(
 
 
 @usecase(has_verbose_exc=True)
+def safe_remove_migration(
+    application: applications.MigrationApp,
+    migration_version: int,
+    verbose_exc: bool,
+) -> ExitCode:
+    migration = application.session.get_migration_model_by_version(migration_version)
+    output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
+
+    if migration is None:
+        output.print_error(f"Migration with version '{migration_version}' is not found.")
+        return FAILURE
+
+    latest, *_ = application.session.get_all_migration_models(ascending_id=False)
+    if migration.version != latest.version:
+        output.print_error(
+            f"Removing migrations must be sequential."
+            f" "
+            f"The currently available version for deletion is"
+            f" "
+            f"'{latest.version}'"
+        )
+        return FAILURE
+
+    application.session.remove_migration(migration_version)
+    output.print_success(
+        f"Migration with version {migration_version} has been successfully deleted."
+    )
+
+    directory = application.session.session_scripts_dir
+    if os.path.exists(fp := (directory + "\\" + migration.name + ".py")):
+        os.remove(fp)
+
+    return SUCCESS
+
+
+@usecase(has_verbose_exc=True)
+def check_files(
+    application: applications.MigrationApp,
+    raise_exc: bool,
+    verbose_exc: bool,
+) -> ExitCode:
+    service = migration_service.MigrationService(application.session)
+    failed_migrations = []
+    output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
+
+    for migration in application.session.get_all_migration_models():
+        current_migration_state = service.get_migration(migration.name, migration.version)
+        if current_migration_state.checksum != migration.checksum:
+            failed_migrations.append(current_migration_state)
+
+    if failed_migrations:
+        output.print_error(
+            f"'{', '.join(m.name for m in failed_migrations)}' migration file(s) are changed."
+        )
+        if raise_exc:
+            raise domain_exception.MigrationFilesChangedError(*[m.name for m in failed_migrations])
+
+        return FAILURE
+
+    output.print_success("All files remain in their previous state.")
+    return SUCCESS
+
+
+@usecase(has_verbose_exc=True)
+def refresh_checksums(application: applications.MigrationApp, verbose_exc: bool) -> ExitCode:
+    service = migration_service.MigrationService(application.session)
+    modified_files = []
+
+    for migration in application.session.get_all_migration_models():
+        current_migration_state = service.get_migration(migration.name, migration.version)
+
+        if current_migration_state.checksum != migration.checksum:
+            application.session.remove_migration(migration.version)
+            application.session.append_migration(current_migration_state)
+
+            modified_files.append(current_migration_state.name)
+
+    if modified_files:
+        output.print_success(
+            f"'{', '.join(modified_files)}' files have been modified, and their "
+            f"checksums have been successfully updated."
+        )
+    else:
+        output.print_info("All files remain in their previous state.")
+
+    return SUCCESS
+
+
+@usecase(has_verbose_exc=True)
+def safe_remove_all_migrations(
+    application: applications.MigrationApp,
+    verbose_exc: bool,
+) -> ExitCode:
+    migrations = application.session.get_all_migration_models()
+
+    output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
+    if not migrations:
+        output.print_error("There is no migrations.")
+        return FAILURE
+
+    for migration in migrations:
+        application.session.remove_migration(migration.version)
+
+    directory = application.session.session_scripts_dir
+    for file_name in os.listdir(directory):
+        if file_name.startswith("_") or not file_name.endswith(".py"):
+            continue
+
+        file_path = os.path.join(directory, file_name)
+        os.remove(file_path)
+
+    output.print_success(f"Successfully deleted {len(migrations)} migration(s).")
+    return SUCCESS
+
+
+@usecase(has_verbose_exc=True)
 def init(
     application: applications.MigrationApp,
     verbose_exc: bool,
@@ -286,6 +398,21 @@ def init(
         )
     if init_collection_indexes:
         ux.configure_migration_indexes(application.session.session_database.migrations)
+
+    return SUCCESS
+
+
+@usecase(has_verbose_exc=True)
+def refresh(
+    application: applications.MigrationApp,
+    verbose_exc: bool,
+) -> ExitCode:
+    synced_names = ux.sync_scripts_with_repository(application)
+    output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
+    if synced_names:
+        output.print_success(f"'{', '.join(synced_names)}' migration(s) was successfully synced.")
+    else:
+        output.print_error("There is no unsynced migrations.")
 
     return SUCCESS
 
@@ -340,7 +467,11 @@ def read_configuration(
     verbose_exc: bool,
 ) -> UseCaseFailedOr[config.Config]:
     reader: typing.Optional[config_reader_port.ConfigReader] = None
-    if config_filepath is None or config_filepath.endswith(".yaml"):  # Default reader
+    if (
+        config_filepath is None
+        or config_filepath.endswith(".yaml")
+        or config_filepath.endswith(".yml")
+    ):  # Default reader
         reader = util.import_obj(
             "mongorunway.infrastructure.config_readers.YamlConfigReader",
             cast=config_reader_port.ConfigReader,
@@ -360,27 +491,24 @@ def read_configuration(
     return configuration
 
 
-def render_error(exc: BaseException, verbose: bool = False) -> None:
+def render_error(exc: Exception, verbose_exc: bool = False) -> None:
     output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
     output.print_warning(type(exc).__name__ + " : " + str(exc))
 
-    if verbose:
+    if verbose_exc:
         exc_info = traceback.format_exception(*sys.exc_info())
         output.print_error("\n".join(exc_info))
 
 
-def render_downgrade_results(verbose: bool, downgraded_count: int, executed_in: float) -> None:
+def render_downgrade_results(downgraded_count: int, executed_in: float) -> None:
     output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
-    output.verbose_print(verbose, "Verbose mode enabled.")
     output.print_success(f"Successfully downgraded {downgraded_count} migration(s).")
-    output.verbose_print(
-        verbose,
+    output.print_info(
         f"Downgraded {downgraded_count} migration(s) in {executed_in}s.",
     )
 
 
-def render_upgrade_results(verbose: bool, upgraded_count: int, executed_in: float) -> None:
+def render_upgrade_results(upgraded_count: int, executed_in: float) -> None:
     output.print_heading(output.HEADING_LEVEL_ONE, output.TOOL_HEADING_NAME)
-    output.verbose_print(verbose, "Verbose mode enabled.")
     output.print_success(f"Successfully upgraded {upgraded_count} migration(s).")
-    output.verbose_print(verbose, f"Upgraded {upgraded_count} migration(s) in {executed_in}s.")
+    output.print_info(f"Upgraded {upgraded_count} migration(s) in {executed_in}s.")

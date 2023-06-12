@@ -66,6 +66,6 @@ class UnixFilenameStrategy(filename_strategy_port.FilenameStrategy):
     def transform_migration_filename(self, filename: str, position: int) -> str:
         if not self.is_valid_filename(filename):
             filename_parts = [i for i in filename.split("_") if i]
-            return str(int(time.time())) + "_" + filename_parts[0]
+            return str(int(time.time())) + "_" + "_".join(filename_parts)
 
         return filename

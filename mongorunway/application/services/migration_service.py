@@ -46,6 +46,7 @@ import typing
 
 import mongorunway
 
+# Required, used by Mongorunway.
 version = $version
 
 

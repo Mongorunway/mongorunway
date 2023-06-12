@@ -1,0 +1,1 @@
+::: mongorunway.application.traits

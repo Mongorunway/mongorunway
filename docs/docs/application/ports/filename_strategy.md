@@ -1,0 +1,1 @@
+::: mongorunway.application.ports.filename_strategy

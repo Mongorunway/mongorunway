@@ -1,0 +1,180 @@
+site_name: Mongorunway
+repo_url: https://github.com/Animatea/mongorunway
+repo_name: Animatea/mongorunway
+site_url: https://mongorunway/docs/
+site_description: A MongoDB migration tool documentation.
+site_author: Animatea
+copyright: >
+  Copyright &copy; 2023 Animatea
+
+nav:
+  - "Home":
+    - index.md
+
+  - "Quickstart":
+    - docs/quickstart_steps/installation.md
+    - docs/quickstart_steps/setup.md
+    - docs/quickstart_steps/usage.md
+
+  - "API Reference":
+    - "Shared":
+      - docs/shared/util.md
+      - docs/shared/api.md
+      - docs/shared/mongo.md
+
+    - "Application":
+      - "Services":
+        - docs/application/services/checksum_service.md
+        - docs/application/services/validation_service.md
+        - docs/application/services/migration_service.md
+        - docs/application/services/status_service.md
+        - docs/application/services/versioning_service.md
+
+      - "Ports":
+        - docs/application/ports/auditlog_journal.md
+        - docs/application/ports/repository.md
+        - docs/application/ports/config_reader.md
+        - docs/application/ports/filename_strategy.md
+
+      - docs/application/applications.md
+      - docs/application/config.md
+      - docs/application/event_manager.md
+      - docs/application/filesystem.md
+      - docs/application/output.md
+      - docs/application/session.md
+      - docs/application/traits.md
+      - docs/application/transactions.md
+      - docs/application/use_cases.md
+      - docs/application/ux.md
+
+
+    - "Domain":
+      - docs/domain/migration.md
+      - docs/domain/migration_auditlog_entry.md
+      - docs/domain/migration_business_module.md
+      - docs/domain/migration_business_rule.md
+      - docs/domain/migration_command.md
+      - docs/domain/migration_event_manager.md
+      - docs/domain/migration_context.md
+      - docs/domain/migration_exception.md
+      - docs/domain/migration_event.md
+
+    - "Infrastructure":
+      - docs/infrastructure/config_readers.md
+      - docs/infrastructure/filename_strategies.md
+      - docs/infrastructure/repositories.md
+      - docs/infrastructure/auditlog_journals.md
+      - docs/infrastructure/commands.md
+      - docs/infrastructure/event_handlers.md
+
+    - "Presentation":
+      - docs/presentation/cli.md
+      - docs/presentation/formatters.md
+      - docs/presentation/presenters.md
+
+  - "Examples":
+    - docs/examples/use_api.md
+    - docs/examples/custom_commands.md
+    - docs/examples/custom_event_handlers.md
+    - docs/examples/custom_repository.md
+    - docs/examples/custom_rules.md
+
+extra_css:
+  - stylesheets/critic.css
+  - stylesheets/mkdocs.css
+  - stylesheets/mongodb-color-palette.css
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  logo: assets/mongodb_logo.png
+  favicon: assets/mongodb_logo.png
+  features:
+    - content.code.copy
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.tabs
+    - navigation.top
+    - navigation.expand
+
+  palette:
+    # Palette toggle for light mode
+    - scheme: default
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - scheme: slate
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  font:
+    text: Roboto
+    code: Roboto Mono
+
+plugins:
+  - search:
+      lang: en
+
+  - mkdocstrings:
+      default_handler: python
+
+      handlers:
+        python:
+
+          selection:
+            docstring_style: numpy
+            inherited_members: true
+
+          rendering:
+            docstring_section_style: spacy
+            show_if_no_docstring: true
+            merge_init_into_class: false
+            show_signature_annotations: false
+            show_source: true
+            show_submodules: false
+            show_root_heading: true
+            separate_signature: false
+
+          import:
+            - https://docs.python.org/3.9/objects.inv
+            - https://animatea.github.io/mongorunway/objects.inv
+
+markdown_extensions:
+  - markdown.extensions.attr_list
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.critic
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+
+  - admonition
+  - attr_list
+  - md_in_html
+  - footnotes
+  - tables
+
+  - toc:
+      permalink: "¤"
+
+watch:
+  - mongorunway
+
+extra:
+  social:
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/mongorunway/
+
+    - icon: fontawesome/brands/discord
+      link: https://discord.com/invite/KKUFRZCt4f/
