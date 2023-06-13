@@ -28,7 +28,7 @@ target-version = ["py39"]
 
 [tool.poetry]
 name = "mongorunway"
-version = "1.0.2a"
+version = "1.0.4a"
 description = "A MongoDB migration tool."
 authors = ["Animatea <animatea.programming@gmail.com>"]
 readme = "PYPI_README.md"

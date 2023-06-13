@@ -28,25 +28,25 @@
   <h3 style="font-family: 'Arial', sans-serif;">Features:</h3>
 
   <ul style="font-family: 'Arial', sans-serif; font-size: 14px;">
-    <li>**Ease of Use:** Mongorunway is designed with a focus on an intuitive interface and ease of use.
+    <li><strong>Ease of Use:</strong> Mongorunway is designed with a focus on an intuitive interface and ease of use.
       You don't need to be an expert in MongoDB or data migration to take advantage of all the
       capabilities this tool provides.</li>
-    <li>**Precise Control with Rule-based Implementation:** With its meticulously crafted rule-based 
+    <li> <strong>Precise Control with Rule-based Implementation:</strong> With its meticulously crafted rule-based 
     implementation, Mongorunway enables precise control and customization prior to 
     executing specific migration processes. This ensures that migrations are executed in a 
     controlled and reliable manner, allowing for seamless transitions between different database 
     versions.</li>
-    <li>**Flexibility and Adaptability with Event-Driven Architecture:** Driven by an advanced 
+    <li><strong>Flexibility and Adaptability with Event-Driven Architecture:</strong> Driven by an advanced 
     Event-Driven architecture, the project excels in handling a multitude of events, ensuring 
     optimal flexibility and adaptability throughout the migration journey. Developers can leverage 
     this powerful architecture to efficiently handle various scenarios and events, resulting in a 
     smooth and efficient migration process.</li>
-    <li>**Extensibility through Custom Components:** Mongorunway boasts a highly 
+    <li><strong>Extensibility through Custom Components:</strong> Mongorunway boasts a highly 
     flexible architecture, opening up a world of possibilities for users to implement their own 
     custom components through well-defined public interfaces (ports). This extensibility empowers 
     developers to tailor the tool to their unique requirements, enabling them to add specialized 
     functionalities and enhance overall productivity.</li>
-    <li>**Customization Beyond the Basics:** While equipped with a comprehensive range of built-in 
+    <li><strong>Customization Beyond the Basics:</strong> While equipped with a comprehensive range of built-in 
     commands catering to common migration tasks, Mongorunway goes a step further by 
     offering the ability to create custom commands. This exceptional feature enables developers to 
     fine-tune the tool to align precisely with their specific needs and preferences.</li>
