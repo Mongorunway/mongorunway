@@ -339,7 +339,6 @@ class MigrationAppImpl(MigrationApp):
             self._session.get_migration_models_by_flag(is_applied=False)
         )
         pending_migration_models.sort(key=operator.attrgetter("version"))
-        print(len(pending_migration_models), pending_migration_models)
 
         with self._session.begin_mongo_session() as session_context:
             while pending_migration_models:
