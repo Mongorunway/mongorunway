@@ -28,6 +28,7 @@ __all__: typing.Sequence[str] = (
 import abc
 import functools
 import logging
+import operator
 import typing
 
 import typing_extensions
@@ -334,7 +335,11 @@ class MigrationAppImpl(MigrationApp):
         self, predicate: typing.Callable[[domain_migration.Migration], bool], /
     ) -> int:
         upgraded = 0
-        pending_migration_models = self._session.get_migration_models_by_flag(is_applied=False)
+        pending_migration_models = list(
+            self._session.get_migration_models_by_flag(is_applied=False)
+        )
+        pending_migration_models.sort(key=operator.attrgetter("version"))
+        print(len(pending_migration_models), pending_migration_models)
 
         with self._session.begin_mongo_session() as session_context:
             while pending_migration_models:
@@ -373,7 +378,10 @@ class MigrationAppImpl(MigrationApp):
         self, predicate: typing.Callable[[domain_migration.Migration], bool], /
     ) -> int:
         downgraded = 0
-        applied_migration_models = self._session.get_migration_models_by_flag(is_applied=True)
+        applied_migration_models = list(
+            self._session.get_migration_models_by_flag(is_applied=True)
+        )
+        applied_migration_models.sort(key=operator.attrgetter("version"), reverse=True)
 
         with self._session.begin_mongo_session() as session_context:
             while applied_migration_models:
